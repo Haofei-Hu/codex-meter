@@ -1,0 +1,14 @@
+.DS_Store
+build/
+dist/
+work/
+*.app/
+*.dmg
+*.zip
+*.dSYM/
+Assets/AppIcon.iconset/
+.auth*
+auth.json
+*.jsonl
+*.sqlite*
+.env*
