@@ -643,8 +643,8 @@ struct SettingsPanel: View {
             QuotaSettings(model: model)
         }
         .padding(20).frame(width: 300)
-        .background { GlassTone(appearance: model.popoverGlass) }
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background { GlassSurface(appearance: model.popoverGlass) }
+        .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
         .environment(\.colorScheme, model.popoverGlass.theme.colorScheme ?? inheritedColorScheme)
     }
 }

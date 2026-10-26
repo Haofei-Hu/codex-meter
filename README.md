@@ -12,14 +12,14 @@ A desktop card and menu bar / tray app for Codex quota and local task progress. 
 
 | 系统 | 下载文件 | 安装方法 |
 | --- | --- | --- |
-| macOS 13+，Apple 芯片 / Intel | [1.5.1.9 PKG 安装包](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1.9) | 自动替换旧版、清理旧副本；保留账号与设置 |
+| macOS 13+，Apple 芯片 / Intel | [1.5.1.10 PKG 安装包](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1.10) | 自动替换旧版、清理旧副本；保留账号与设置 |
 | Windows 10/11 x64 | [1.5.2 下载页](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.2) · `windows-x64-setup.exe` | 运行安装向导；也提供 `portable.exe` 免安装版 |
 | Linux x64 | [1.5.1 下载页](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1) · AppImage | 文件属性中允许执行，双击启动 |
 | Ubuntu 22.04+ / Debian 12+ x64 | [1.5.1 下载页](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1) · deb | 用系统软件安装器安装，或 `sudo apt install ./文件名.deb` |
 
 **Mac 升级请优先使用 `.pkg`**：安装到 `/Applications/Codex Meter.app`，先停止旧程序并覆盖同一路径的旧版本，安装成功后把 `/Applications` 和当前用户 `~/Applications` 中同一 bundle ID 的其他旧副本移入废纸篓。保留账号、应用偏好与任务记录，不清空废纸篓。安装失败时不会清理其他旧副本；不移除比安装包更新的版本。DMG / ZIP 仍是手动安装方式，不自动清理旧副本。
 
-Mac 原生版当前为 **1.5.1.9**；Windows 为 **1.5.2**，Linux 为 **1.5.1**。Mac 采用系统原生弹窗材质、文字颜色和弹出／收起动画，随系统浅色／深色外观与辅助功能设置变化。设置中的“玻璃外观”可以分别调节桌面卡片和弹出面板的透明度、磨砂遮挡和浅色／深色底色，实时预览、自动保存，并支持同步参数和还原默认。所有调整值始终保留完整的系统背景模糊，磨砂最高值接近实色遮挡；桌面卡片不再使用容易从半透明边缘露出的窗口阴影。Mac 由窗口直接处理背景拖动，支持从标题、额度圆圈、文字、空白处和四周可见边缘移动卡片；设置、刷新、滚动条和右下角缩放手柄独立响应。Plus / Pro 均适用；桌面卡片按当前屏幕可用空间适配，过长内容可以滚动，顶部和底部控件保持可见。
+Mac 原生版当前为 **1.5.1.10**；Windows 为 **1.5.2**，Linux 为 **1.5.1**。Mac 采用系统原生磨砂材质、文字颜色和弹出／收起动画，随系统浅色／深色外观与辅助功能设置变化。设置中的“玻璃外观”可以分别调节桌面卡片和弹出面板的透明度、磨砂遮挡和浅色／深色底色，实时预览、自动保存，并支持同步参数和还原默认。所有调整值始终保留完整的系统背景模糊，两个调整条均为 0–200%：透明度超过 100% 会减少较厚的材质层，保留更通透的系统磨砂；磨砂 200% 为实色遮挡；桌面卡片不再使用容易从半透明边缘露出的窗口阴影。Mac 由窗口直接处理背景拖动，支持从标题、额度圆圈、文字、空白处和四周可见边缘移动卡片；设置、刷新、滚动条和右下角缩放手柄独立响应。Plus / Pro 均适用；桌面卡片按当前屏幕可用空间适配，过长内容可以滚动，顶部和底部控件保持可见。
 
 先在本机安装并登录 Codex / ChatGPT 桌面应用，或 [Codex CLI](https://github.com/openai/codex)。每个人使用自己的账号，无需 API Key。Windows 1.5.2 会查找 Codex 桌面应用（含微软商店版）的后台程序，安装包也内置官方 Codex 0.164.0 作为备用，无需单独安装 CLI。Linux 仍需本机的 **Codex CLI**。如果没有自动找到，可在卡片设置中选择后台 `codex.exe` / `codex`（Windows 也支持 npm 的 `codex.cmd`，不能选择桌面 GUI 程序）。支持启动时设置的 `CODEX_HOME`；Meter 与 Codex 必须使用同一个系统用户和配置目录。WSL 与 Windows 的登录目录是分开的。
 

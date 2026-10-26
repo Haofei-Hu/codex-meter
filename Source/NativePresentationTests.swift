@@ -15,11 +15,11 @@ import SwiftUI
             host.appearance = NSAppearance(named: appearanceName)
             host.layoutSubtreeIfNeeded()
         }
-        precondition(allViews(statusHost).allSatisfy { !($0 is FrostedBackdrop) }, "Native status popover must not contain a second custom backdrop")
-        precondition(allViews(settingsHost).allSatisfy { !($0 is FrostedBackdrop) }, "Native settings popover must not contain a second custom backdrop")
+        precondition(allViews(statusHost).compactMap { $0 as? FrostedBackdrop }.count == 1, "Status needs one complete background blur")
+        precondition(allViews(settingsHost).compactMap { $0 as? FrostedBackdrop }.count == 1, "Settings needs one complete background blur")
         let materials = allViews(desktopHost).compactMap { $0 as? FrostedBackdrop }
         precondition(materials.count == 1, "Desktop needs exactly one system material")
-        precondition(materials[0].material == .popover && materials[0].appearance == nil, "Desktop material must inherit the native system appearance")
+        precondition(materials[0].material == .hudWindow && materials[0].appearance == nil, "Desktop blur must inherit the native system appearance")
     }
     for host in [statusHost as NSView, settingsHost, desktopHost] { host.appearance = nil }
     // A native popover owns the visible window and its animation; the anchored

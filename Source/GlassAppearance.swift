@@ -26,12 +26,12 @@ struct GlassAppearance: Equatable {
         self.frost = Self.normalized(frost)
         self.theme = theme
     }
-    // The native blur stays fully enabled. Frost now adds a matte veil instead
-    // of crossfading with an unblurred desktop/window. Endpoints span native
-    // frosted glass through near-solid coverage, independently of base opacity.
-    var toneOpacity: Double { 1 - transparency * (1 - 0.96 * frost) }
+    // Above 100% transparency, remove the denser material over the permanent
+    // HUD blur. This reveals more blurred background color, never sharp text.
+    var densityOpacity: Double { max(0, min(1, 2 - transparency)) }
+    var toneOpacity: Double { 1 - min(transparency, 1) * (1 - frost / 2) }
     private static func normalized(_ value: Double) -> Double {
-        value.isFinite ? min(1, max(0, value)) : 1
+        value.isFinite ? min(2, max(0, value)) : 1
     }
     init(preferences: UserDefaults, target: GlassTarget) {
         func value(_ field: String, fallback: Double) -> Double {
@@ -65,13 +65,13 @@ struct GlassAppearanceSettings: View {
             HStack {
                 Text(title)
                 Spacer()
-                Text("\(Int((value[keyPath: field] * 100).rounded()))%")
+                Text("\(Int((value[keyPath: field] * 100).rounded()))% / 200%")
                     .monospacedDigit().foregroundStyle(glassSecondary)
             }
             Slider(value: Binding(get: { value[keyPath: field] }, set: { number in
                 var next = value; next[keyPath: field] = number
                 model.setGlassAppearance(next, for: target)
-            }), in: 0...1, step: 0.01)
+            }), in: 0...2, step: 0.01)
                 .accessibilityLabel(target.title + title)
                 .accessibilityValue("\(Int((value[keyPath: field] * 100).rounded()))%")
         }
@@ -82,7 +82,7 @@ struct GlassAppearanceSettings: View {
                 Text("玻璃外观").fontWeight(.medium)
                 Spacer()
                 Button("还原外观") { model.setGlassAppearance(.system, for: target) }
-                    .help("将当前面板还原为系统默认材质")
+                    .help("将当前面板还原为默认磨砂外观")
             }
             Picker("调整对象", selection: $target) {
                 ForEach(GlassTarget.allCases) { Text($0.title).tag($0) }
@@ -96,7 +96,7 @@ struct GlassAppearanceSettings: View {
                 ForEach(GlassTheme.allCases) { Text($0.title).tag($0) }
             }.pickerStyle(.segmented)
                 .accessibilityLabel(target.title + "底色")
-            Text("始终模糊背景；提高磨砂会遮住更多细节，降低透明度会加实底色。")
+            Text("透明度超过 100% 更通透；磨砂 200% 为实色遮挡。所有位置都保留背景模糊。")
                 .font(.system(size: 10)).foregroundStyle(glassSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Button(target == .desktop ? "同步到弹出面板" : "同步到桌面卡片") {

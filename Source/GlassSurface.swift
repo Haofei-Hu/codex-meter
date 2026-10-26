@@ -10,7 +10,7 @@ struct GlassBackdrop: NSViewRepresentable {
     let appearance: GlassAppearance
     func makeNSView(context: Context) -> FrostedBackdrop {
         let view = FrostedBackdrop()
-        view.material = .popover
+        view.material = .hudWindow
         view.blendingMode = .behindWindow
         view.state = .active
         view.wantsLayer = true
@@ -22,9 +22,25 @@ struct GlassBackdrop: NSViewRepresentable {
         view.layer?.cornerRadius = cornerRadius
         view.alphaValue = 1
         view.appearance = appearance.theme.nativeAppearance
+        view.density.alphaValue = appearance.densityOpacity
     }
 }
 final class FrostedBackdrop: NSVisualEffectView {
+    let density = DensityBackdrop()
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        density.frame = bounds
+        density.autoresizingMask = [.width, .height]
+        density.material = .popover
+        density.blendingMode = .behindWindow
+        density.state = .active
+        addSubview(density)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override var mouseDownCanMoveWindow: Bool { false }
+}
+final class DensityBackdrop: NSVisualEffectView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     override var mouseDownCanMoveWindow: Bool { false }
 }
