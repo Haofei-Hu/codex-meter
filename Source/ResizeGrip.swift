@@ -37,12 +37,14 @@ final class CornerResizeView: NSView {
         }
     }
     override func mouseDown(with event: NSEvent) {
-        startMouse = NSEvent.mouseLocation
+        guard let window else { return }
+        startMouse = window.convertPoint(toScreen: event.locationInWindow)
         startScale = currentScale()
-        baseHeight = (window?.frame.height ?? 274) / startScale
+        baseHeight = window.frame.height / startScale
     }
     override func mouseDragged(with event: NSEvent) {
-        let point = NSEvent.mouseLocation
+        guard let window else { return }
+        let point = window.convertPoint(toScreen: event.locationInWindow)
         let dx = (point.x - startMouse.x) / 332
         let dy = (startMouse.y - point.y) / baseHeight
         onResize(startScale + (abs(dx) >= abs(dy) ? dx : dy))

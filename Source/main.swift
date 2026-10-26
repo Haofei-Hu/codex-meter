@@ -517,9 +517,9 @@ struct QuotaCard: View {
                 Spacer()
                 Circle().fill(model.stale ? Color.orange : mint).frame(width: 5, height: 5)
                 Text(model.syncLabel).font(.system(size: 10)).foregroundStyle(.secondary)
-              }.overlay { if desktop { WindowDragRegion() } }
+              }
                 if desktop {
-                    Button { openMenu?() } label: { Image(systemName: "ellipsis").frame(width: 22, height: 22) }.buttonStyle(.plain).help("卡片设置")
+                    Button { openMenu?() } label: { Image(systemName: "ellipsis").frame(width: 22, height: 22) }.buttonStyle(.plain).help("卡片设置").background { WindowControlRegion() }
                 }
             }
     }
@@ -550,7 +550,6 @@ struct QuotaCard: View {
             WorkProgressSection(overview: model.work, now: model.now)
             if let error = model.error { Text(error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
         }.fixedSize(horizontal: false, vertical: true)
-         .overlay { if desktop { WindowDragRegion() } }
     }
     var footer: some View {
             HStack {
@@ -562,6 +561,7 @@ struct QuotaCard: View {
                 Button { model.refresh() } label: {
                     Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .medium)).frame(width: 30, height: 30).background(.white.opacity(0.07), in: Circle())
                 }.buttonStyle(.plain).disabled(model.loading || model.pausedReason != nil).help("立即刷新")
+                 .background { if desktop { WindowControlRegion() } }
 
             }
     }
@@ -639,13 +639,8 @@ struct DesktopCard: View {
             .fixedSize()
             .scaleEffect(model.cardScale, anchor: .topLeading)
             .frame(width: 332 * model.cardScale, height: model.cardVisibleHeight * model.cardScale, alignment: .topLeading)
+            .background { WindowDragRegion() }
     }
-}
-final class DesktopPanel: NSPanel {
-    var userDragging = false
-    var dragEnded: (() -> Void)?
-    override var canBecomeKey: Bool { false }
-    override var canBecomeMain: Bool { false }
 }
 func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
     let image = NSImage(size: NSSize(width: 44, height: 16), flipped: false) { _ in
@@ -692,12 +687,7 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
         statusItem.button?.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         statusItem.button?.imagePosition = .imageLeading
         popover.behavior = .transient
-        panel = DesktopPanel(contentRect: NSRect(x: 0, y: 0, width: 332, height: 244), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.title = "Codex Meter"; panel.isOpaque = false; panel.backgroundColor = .clear
-        panel.hasShadow = true; panel.isMovableByWindowBackground = true
-        panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false
-        panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)
-        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        panel = DesktopPanel(cardFrame: NSRect(x: 0, y: 0, width: 332, height: 244))
         let desktopHost = NSHostingView(rootView: DesktopCard(model: model, openMenu: { [weak self] in self?.showDesktopPopover() }))
         desktopHost.sizingOptions = []
         panel.contentView = desktopHost
@@ -706,13 +696,13 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
         panel.setFrameOrigin(NSPoint(x: area.maxX - 356, y: area.maxY - 285))
         panel.setFrameAutosaveName("CodexQuotaDesktop")
         panel.setAccessibilityCustomActions([NSAccessibilityCustomAction(name: "打开状态栏面板", target: self, selector: #selector(accessibilityOpenStatusMenu))])
-        if model.desktopVisible { panel.orderFrontRegardless() }
+        if model.desktopVisible { panel.orderBack(nil) }
         model.onChange = { [weak self] in DispatchQueue.main.async { self?.updateStatus() } }
         model.toggleDesktop = { [weak self] in
             guard let self else { return }
             self.model.desktopVisible.toggle()
             UserDefaults.standard.set(!self.model.desktopVisible, forKey: "desktopHidden")
-            if self.model.desktopVisible { self.panel.orderFrontRegardless() } else { self.panel.orderOut(nil) }
+            if self.model.desktopVisible { self.panel.orderBack(nil) } else { self.panel.orderOut(nil) }
         }
         model.setHostRunning(hostIsRunning())
         let center = NSWorkspace.shared.notificationCenter

@@ -17,20 +17,88 @@ func desktopCardLayout(naturalHeight: CGFloat, requestedScale: Double, visibleFr
     return DesktopCardLayout(scale: scale, visibleHeight: height, frame: NSRect(x: x, y: top - size.height, width: size.width, height: size.height))
 }
 
-// Explicit native drag handling works inside SwiftUI hosting views and scroll views.
+// Layout markers do not consume clicks. The panel routes dragging before
+// SwiftUI/NSScrollView can swallow a background mouse-down in an inactive app.
 struct WindowDragRegion: NSViewRepresentable {
     func makeNSView(context: Context) -> WindowDragView { WindowDragView() }
     func updateNSView(_ view: WindowDragView, context: Context) {}
 }
-final class WindowDragView: NSView {
-    override var mouseDownCanMoveWindow: Bool { true }
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-    override func mouseDown(with event: NSEvent) {
-        guard let window else { return }
-        let panel = window as? DesktopPanel
-        panel?.userDragging = true
-        defer { panel?.userDragging = false; panel?.dragEnded?() }
-        window.performDrag(with: event)
+struct WindowControlRegion: NSViewRepresentable {
+    func makeNSView(context: Context) -> WindowControlView { WindowControlView() }
+    func updateNSView(_ view: WindowControlView, context: Context) {}
+}
+class WindowRegionView: NSView {
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    func containsWindowPoint(_ point: NSPoint) -> Bool {
+        let local = convert(point, from: nil)
+        return !isHiddenOrHasHiddenAncestor && bounds.contains(local) && visibleRect.contains(local)
+    }
+}
+final class WindowDragView: WindowRegionView {}
+final class WindowControlView: WindowRegionView {}
+
+final class DesktopPanel: NSPanel {
+    private var startPointer: NSPoint?
+    private var startOrigin: NSPoint?
+    private(set) var userDragging = false
+    var dragEnded: (() -> Void)?
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
+    init(cardFrame: NSRect) {
+        super.init(contentRect: cardFrame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        title = "Codex Meter"; isOpaque = false; backgroundColor = .clear; hasShadow = true
+        hidesOnDeactivate = false; isReleasedWhenClosed = false
+        // Use a normal window behind apps, above Finder's desktop surfaces.
+        // Moving uses our own event sequence, not AppKit's background drag path.
+        level = .normal; isMovable = false; isMovableByWindowBackground = false
+        collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    func canDragDesktop(at point: NSPoint) -> Bool {
+        guard let contentView, contentView.bounds.contains(contentView.convert(point, from: nil)) else { return false }
+        var hit = contentView.hitTest(contentView.convert(point, from: nil))
+        while let view = hit {
+            if view is NSControl || view is CornerResizeView { return false }
+            hit = view.superview
+        }
+        var draggable = false, blocked = false
+        func visit(_ view: NSView) {
+            if let region = view as? WindowRegionView, region.containsWindowPoint(point) {
+                if region is WindowControlView { blocked = true }
+                if region is WindowDragView { draggable = true }
+            }
+            if let grip = view as? CornerResizeView, !grip.isHiddenOrHasHiddenAncestor,
+               grip.bounds.contains(grip.convert(point, from: nil)), grip.visibleRect.contains(grip.convert(point, from: nil)) { blocked = true }
+            for child in view.subviews { visit(child) }
+        }
+        visit(contentView)
+        return draggable && !blocked
+    }
+    func beginDesktopDrag(at screenPoint: NSPoint) {
+        startPointer = screenPoint; startOrigin = frame.origin; userDragging = true
+    }
+    func moveDesktopDrag(to screenPoint: NSPoint) {
+        guard userDragging, let startPointer, let startOrigin else { return }
+        setFrameOrigin(NSPoint(x: startOrigin.x + screenPoint.x - startPointer.x,
+                               y: startOrigin.y + screenPoint.y - startPointer.y))
+    }
+    func endDesktopDrag() {
+        guard userDragging else { return }
+        userDragging = false; startPointer = nil; startOrigin = nil
+        if !frameAutosaveName.isEmpty { saveFrame(usingName: frameAutosaveName) }
+        dragEnded?()
+    }
+    override func sendEvent(_ event: NSEvent) {
+        switch event.type {
+        case .leftMouseDown where canDragDesktop(at: event.locationInWindow):
+            beginDesktopDrag(at: convertPoint(toScreen: event.locationInWindow)); return
+        case .leftMouseDragged where userDragging:
+            moveDesktopDrag(to: convertPoint(toScreen: event.locationInWindow)); return
+        case .leftMouseUp where userDragging:
+            moveDesktopDrag(to: convertPoint(toScreen: event.locationInWindow)); endDesktopDrag(); return
+        default: super.sendEvent(event)
+        }
     }
 }
 func testDesktopCardLayout() {
