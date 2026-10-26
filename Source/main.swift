@@ -493,7 +493,7 @@ struct QuotaRing: View {
     private var fraction: Double { Double(max(0, min(100, remaining ?? 0))) / 100 }
     var body: some View {
         ZStack {
-            Circle().inset(by: inset).stroke(.white.opacity(0.08), lineWidth: 6)
+            Circle().inset(by: inset).stroke(Color.secondary.opacity(0.15), lineWidth: 6)
             Circle().inset(by: inset).trim(from: 1 - fraction, to: 1)
                 .stroke(quotaColor(remaining ?? 100), style: StrokeStyle(lineWidth: 6, lineCap: .round)).rotationEffect(.degrees(-90))
                 .animation(.easeInOut(duration: 1.2), value: remaining)
@@ -520,7 +520,7 @@ struct QuotaCard: View {
                 Text(model.syncLabel).font(.system(size: 10)).foregroundStyle(glassSecondary)
               }
                 if desktop {
-                    Button { openMenu?() } label: { Image(systemName: "ellipsis").frame(width: 22, height: 22).background { GlassCircle() } }.buttonStyle(.plain).help("卡片设置").background { WindowControlRegion() }
+                    Button { openMenu?() } label: { Image(systemName: "ellipsis").frame(width: 22, height: 22) }.modifier(NativeIconButtonStyle()).help("卡片设置").background { WindowControlRegion() }
                 }
             }
     }
@@ -560,8 +560,8 @@ struct QuotaCard: View {
                 }
                 Spacer()
                 Button { model.refresh() } label: {
-                    Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .medium)).frame(width: 30, height: 30).background { GlassCircle() }
-                }.buttonStyle(.plain).disabled(model.loading || model.pausedReason != nil).help("立即刷新")
+                    Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .medium)).frame(width: 30, height: 30)
+                }.modifier(NativeIconButtonStyle()).disabled(model.loading || model.pausedReason != nil).help("立即刷新")
                  .background { if desktop { WindowControlRegion() } }
 
             }
@@ -573,7 +573,7 @@ struct QuotaCard: View {
                 ScrollView(.vertical) { contents }.scrollIndicators(.automatic)
                     .frame(maxHeight: .infinity)
             } else { contents }
-            Rectangle().fill(.white.opacity(0.09)).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
             footer.fixedSize(horizontal: false, vertical: true)
             if !desktop { QuotaSettings(model: model) }
         }
@@ -583,7 +583,6 @@ struct QuotaCard: View {
         .overlay(alignment: .bottomTrailing) {
             if desktop { ResizeGrip(model: model).frame(width: 30, height: 30).padding(5) }
         }
-        .environment(\.colorScheme, .dark)
     }
 }
 struct QuotaSettings: View {
@@ -625,9 +624,6 @@ struct SettingsPanel: View {
             QuotaSettings(model: model)
         }
         .padding(20).frame(width: 300)
-        .background { GlassSurface(cornerRadius: 20) }
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .environment(\.colorScheme, .dark)
     }
 }
 struct DesktopCard: View {
@@ -663,11 +659,10 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
     let model = QuotaModel()
     var statusItem: NSStatusItem!
     // Desktop settings and the menu-bar overview have independent windows and anchors.
-    var popover = NSPopover()
-    var statusMenu: StatusMenuPanel?
+    var popover = makeNativePopover()
+    var statusPopover = makeNativePopover()
+    var statusHostingController: NSHostingController<StatusMenuContent>?
     var lastMenuLayoutKey = ""
-    var outsideClickMonitor: Any?
-    var localClickMonitor: Any?
     var panel: DesktopPanel!
     var subscriptions = Set<AnyCancellable>()
     var lastStatusImageKey = ""
@@ -684,7 +679,10 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
         statusItem.button?.target = self; statusItem.button?.action = #selector(showPopover)
         statusItem.button?.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         statusItem.button?.imagePosition = .imageLeading
-        popover.behavior = .transient
+        NSApp.publisher(for: \.effectiveAppearance).receive(on: RunLoop.main).sink { [weak self] appearance in
+            self?.popover.appearance = appearance
+            self?.statusPopover.appearance = appearance
+        }.store(in: &subscriptions)
         panel = DesktopPanel(cardFrame: NSRect(x: 0, y: 0, width: 332, height: 244))
         let desktopHost = NSHostingView(rootView: DesktopCard(model: model, openMenu: { [weak self] in self?.showDesktopPopover() }))
         desktopHost.sizingOptions = []
@@ -722,63 +720,45 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
     }
     @objc func accessibilityOpenStatusMenu() -> Bool { showPopover(); return true }
     @objc func showPopover() {
-        if statusMenu?.isVisible == true { closeStatusMenu(); return }
+        if statusPopover.isShown { closeStatusMenu(); return }
         popover.performClose(nil)
-        if statusMenu == nil {
-            let menu = StatusMenuPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-            menu.title = "Codex Meter · 额度面板"
-            menu.isOpaque = false; menu.backgroundColor = .clear; menu.hasShadow = true
-            menu.isMovable = false; menu.isReleasedWhenClosed = false
-            menu.level = .popUpMenu
-            menu.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
-            statusMenu = menu
-        }
+        guard let button = statusItem.button else { return }
+        statusPopover.appearance = NSApp.effectiveAppearance
         lastMenuLayoutKey = ""
         layoutStatusMenu()
-        statusMenu?.makeKeyAndOrderFront(nil)
-        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in self?.closeStatusMenu() }
-        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
-            guard let self else { return event }
-            if event.type == .keyDown {
-                if event.keyCode == 53 { self.closeStatusMenu(); return nil }
-            } else if event.window !== self.statusMenu && event.window !== self.statusItem.button?.window {
-                self.closeStatusMenu()
-            }
-            return event
-        }
+        statusPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         if model.lastUpdate == nil || (model.dataAge ?? 0) >= 3 { model.refresh() }
     }
-    func closeStatusMenu() {
-        statusMenu?.orderOut(nil)
-        if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor); self.outsideClickMonitor = nil }
-        if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor); self.localClickMonitor = nil }
-    }
+    func closeStatusMenu() { statusPopover.performClose(nil) }
     func layoutStatusMenu() {
-        guard let menu = statusMenu, let button = statusItem.button, let buttonWindow = button.window else { return }
+        guard let buttonWindow = statusItem.button?.window, let screen = buttonWindow.screen ?? NSScreen.main else { return }
         let key = "\(model.displayRows.map { $0.id }.joined(separator: ","))-\(model.error ?? "")-\(model.accountLabel)-\(model.pausedReason ?? "")-\(model.work.state)-\(model.work.tasks.map { "\($0.id):\($0.title):\($0.detail):\($0.planTotal):\($0.stage)" }.joined(separator: ","))"
         guard key != lastMenuLayoutKey else { return }
         lastMenuLayoutKey = key
-        let anchor = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
-        guard let screen = buttonWindow.screen ?? NSScreen.screens.first(where: { $0.frame.intersects(anchor) }) ?? NSScreen.main else { return }
-        let measure = NSHostingView(rootView: QuotaCard(model: model))
-        let frame = statusMenuFrame(anchor: anchor, contentSize: measure.fittingSize, visibleFrame: screen.visibleFrame)
-        let host = NSHostingView(rootView: StatusMenuContent(model: model, height: frame.height))
-        host.sizingOptions = []
-        menu.contentView = host
-        menu.setFrame(frame, display: true)
+        let measure = NSHostingView(rootView: QuotaCard(model: model, showsSurface: false))
+        let size = statusPopoverContentSize(natural: measure.fittingSize, visibleFrame: screen.visibleFrame)
+        if let host = statusHostingController {
+            if host.rootView.height != size.height { host.rootView = StatusMenuContent(model: model, height: size.height) }
+        } else {
+            let host = NSHostingController(rootView: StatusMenuContent(model: model, height: size.height))
+            statusHostingController = host
+            statusPopover.contentViewController = host
+        }
+        if statusPopover.contentSize != size { statusPopover.contentSize = size }
     }
     func showDesktopPopover() {
         closeStatusMenu()
         guard let view = panel.contentView else { return }
         if popover.isShown { popover.performClose(nil) }
         else {
+            popover.appearance = NSApp.effectiveAppearance
             popover.contentViewController = NSHostingController(rootView: SettingsPanel(model: model, close: { [weak self] in self?.popover.performClose(nil) }))
             popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minX)
             if model.lastUpdate == nil || (model.dataAge ?? 0) >= 3 { model.refresh() }
         }
     }
     func updateStatus() {
-        if statusMenu?.isVisible == true { layoutStatusMenu() }
+        if statusPopover.isShown { layoutStatusMenu() }
         let layoutKey = "\(model.displayRows.map { $0.id }.joined(separator: ","))-\(model.error ?? "")-\(model.accountLabel)-\(model.pausedReason ?? "")-\(model.desktopScale)-\(model.work.state)-\(model.work.tasks.map { "\($0.id):\($0.title):\($0.detail):\($0.planTotal):\($0.stage)" }.joined(separator: ","))"
         if layoutKey != lastLayoutKey, panel != nil, !panel.userDragging {
             lastLayoutKey = layoutKey
@@ -825,7 +805,7 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
             try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
         }
     }
-    func applicationWillTerminate(_ notification: Notification) { closeStatusMenu(); model.disconnect() }
+    func applicationWillTerminate(_ notification: Notification) { statusPopover.close(); popover.close(); model.disconnect() }
 }
 
 if let index = CommandLine.arguments.firstIndex(of: "--desktop-test"), CommandLine.arguments.count > index + 1 {

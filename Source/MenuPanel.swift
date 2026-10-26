@@ -1,18 +1,17 @@
 import AppKit
 import SwiftUI
 
-func statusMenuFrame(anchor: NSRect, contentSize: NSSize, visibleFrame: NSRect) -> NSRect {
-    let margin: CGFloat = 8
-    let size = NSSize(width: min(contentSize.width, visibleFrame.width - 2 * margin),
-                      height: min(contentSize.height, visibleFrame.height - 2 * margin))
-    let top = min(anchor.minY - 4, visibleFrame.maxY - margin)
-    let x = max(visibleFrame.minX + margin, min(anchor.midX - size.width / 2, visibleFrame.maxX - margin - size.width))
-    let y = max(visibleFrame.minY + margin, min(top - size.height, visibleFrame.maxY - margin - size.height))
-    return NSRect(origin: NSPoint(x: x, y: y), size: size)
+// Both popovers use AppKit's native chrome, positioning and animation.
+func makeNativePopover() -> NSPopover {
+    let popover = NSPopover()
+    popover.behavior = .transient
+    popover.animates = true
+    popover.appearance = NSApp.effectiveAppearance
+    return popover
 }
-final class StatusMenuPanel: NSPanel {
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { false }
+func statusPopoverContentSize(natural: NSSize, visibleFrame: NSRect) -> NSSize {
+    NSSize(width: min(332, max(1, visibleFrame.width - 32)),
+           height: min(natural.height, max(1, visibleFrame.height - 48)))
 }
 struct StatusMenuContent: View {
     @ObservedObject var model: QuotaModel
@@ -21,21 +20,15 @@ struct StatusMenuContent: View {
         ScrollView(.vertical) { QuotaCard(model: model, showsSurface: false) }
             .scrollIndicators(.automatic)
             .frame(width: 332, height: height)
-            .background { GlassSurface() }
-            .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
-            .environment(\.colorScheme, .dark)
     }
 }
 func testStatusMenuPositioning() {
-    let screens = [NSRect(x: 0, y: 25, width: 1440, height: 850), NSRect(x: -1920, y: 70, width: 1920, height: 980)]
-    for screen in screens {
-        for x in [screen.minX, screen.midX, screen.maxX - 20] {
-            for height in [430.0, 680.0, 1600.0] {
-                let frame = statusMenuFrame(anchor: NSRect(x: x, y: screen.maxY, width: 100, height: 25), contentSize: NSSize(width: 332, height: height), visibleFrame: screen)
-                precondition(screen.contains(frame))
-                precondition(frame.maxY <= screen.maxY - 8)
-            }
+    for screen in [NSRect(x: 0, y: 25, width: 1440, height: 850), NSRect(x: -1920, y: 70, width: 1920, height: 980), NSRect(x: 0, y: 0, width: 300, height: 480)] {
+        for height in [430.0, 680.0, 1600.0] {
+            let size = statusPopoverContentSize(natural: NSSize(width: 332, height: height), visibleFrame: screen)
+            precondition(size.width <= screen.width - 32 && size.height <= screen.height - 48)
+            precondition(size.height <= height && size.height > 0)
         }
     }
-    print("PASS: menu stays below menu bar and inside primary/secondary screens, including tall content")
+    print("PASS: native popover content leaves room for system chrome on small and secondary screens")
 }

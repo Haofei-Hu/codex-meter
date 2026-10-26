@@ -27,7 +27,7 @@ final class CornerResizeView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.white.withAlphaComponent(0.5).setStroke()
+        NSColor.secondaryLabelColor.setStroke()
         for offset in [0.0, 5.0, 10.0] {
             let path = NSBezierPath()
             path.lineWidth = 1.5; path.lineCapStyle = .round

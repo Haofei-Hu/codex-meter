@@ -13,6 +13,7 @@ import SwiftUI
     let prefs = UserDefaults(suiteName: suite)!
     defer { prefs.removePersistentDomain(forName: suite) }
     let model = QuotaModel(executableOverride: "/usr/bin/false", preferences: prefs)
+    testNativePresentation(model: model)
     let panel = DesktopPanel(cardFrame: NSRect(x: 80, y: 120, width: 332, height: 600))
     panel.title = "Codex Meter · 界面测试"; panel.isOpaque = false; panel.backgroundColor = .clear
     let host = NSHostingView(rootView: DesktopCard(model: model, openMenu: { print("DRAG_FIXTURE settings clicked") }))
