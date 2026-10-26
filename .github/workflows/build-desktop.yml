@@ -1,0 +1,154 @@
+name: Build desktop apps
+
+on:
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - 'Source/**'
+      - 'Assets/**'
+      - 'scripts/**'
+      - 'build.sh'
+      - 'VERSION'
+      - '.github/workflows/build-desktop.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish the tested installers as a GitHub Release'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  desktop:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            command: dist:win
+            artifact: windows-x64
+          - name: Linux x64
+            os: ubuntu-22.04
+            command: dist:linux
+            artifact: linux-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: desktop
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: desktop/package.json
+          cache: true
+          cache_dependency_path: desktop/pnpm-lock.yaml
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Test account changes, quotas and work records
+        run: pnpm test
+      - name: Generate icons
+        run: pnpm assets
+      - name: Install Linux test display and packaging dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2 libgbm1 libnotify4 libsecret-1-0 fonts-noto-cjk
+      - name: Smoke test the real Windows app
+        if: runner.os == 'Windows'
+        run: pnpm smoke
+        env:
+          CODEX_METER_SCREENSHOT: smoke-windows.png
+      - name: Smoke test the real Linux app
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm smoke
+        env:
+          CODEX_METER_SCREENSHOT: smoke-linux.png
+      - name: Build installers on the target OS
+        run: pnpm ${{ matrix.command }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installers-${{ matrix.artifact }}
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: screenshot-${{ matrix.artifact }}
+          path: desktop/smoke-*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+  macos:
+    name: macOS universal (native Swift)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build native Apple Silicon and Intel app
+        run: ARCHS="arm64 x86_64" ./build.sh
+      - name: Test native account and progress integration
+        run: ./scripts/test.sh
+      - name: Package DMG and ZIP
+        run: ./scripts/package.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installers-macos-universal
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  publish:
+    name: Publish tested installers
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
+    needs: [desktop, macos]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: installers-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify asset set and create checksums
+        shell: bash
+        run: |
+          python3 scripts/release-checksums.py release-assets "$(cat VERSION)"
+      - name: Publish release only after every platform passes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(cat VERSION)"
+          gh release create "v$version" release-assets/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Codex Meter $version · macOS / Windows / Linux" --notes-file docs/release-1.5.0.md

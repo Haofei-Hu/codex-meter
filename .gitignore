@@ -12,3 +12,7 @@ auth.json
 *.jsonl
 *.sqlite*
 .env*
+
+node_modules/
+desktop/assets/icon.png
+desktop/assets/icon.ico

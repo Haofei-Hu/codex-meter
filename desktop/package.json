@@ -1,0 +1,100 @@
+{
+  "name": "codex-meter-desktop",
+  "version": "1.5.0",
+  "description": "Codex quota and local task progress for Windows and Linux",
+  "author": {
+    "name": "Haofei-Hu",
+    "email": "Haofei-Hu@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "assets": "node scripts/assets.cjs",
+    "pack": "pnpm assets && electron-builder --dir --publish never",
+    "dist:win": "pnpm assets && electron-builder --win --x64 --publish never",
+    "dist:linux": "pnpm assets && electron-builder --linux --x64 --publish never",
+    "smoke": "electron . --smoke-test"
+  },
+  "dependencies": {
+    "pngjs": "7.0.0"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "io.github.HaofeiHu.CodexMeter",
+    "productName": "Codex Meter",
+    "copyright": "Copyright 2026 Haofei-Hu",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "src/**",
+      "ui/**",
+      "assets/icon.png",
+      "package.json"
+    ],
+    "extraFiles": [
+      {
+        "from": "../LICENSE",
+        "to": "LICENSE.txt"
+      }
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "artifactName": "CodexMeter-${version}-windows-${arch}-setup.exe",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "portable": {
+      "artifactName": "CodexMeter-${version}-windows-${arch}-portable.exe"
+    },
+    "linux": {
+      "icon": "assets/icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "artifactName": "CodexMeter-${version}-linux-${arch}.${ext}",
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "Codex Meter"
+        }
+      },
+      "executableName": "codex-meter"
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ]
+    }
+  },
+  "packageManager": "pnpm@11.25.0",
+  "homepage": "https://github.com/Haofei-Hu/codex-meter",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Haofei-Hu/codex-meter.git"
+  }
+}

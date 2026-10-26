@@ -2,28 +2,36 @@
 
 <img src="Assets/IconPreview.png" width="96" alt="Codex Meter icon">
 
-macOS 桌面额度卡片与菜单栏工具，显示 Codex 剩余额度、重置时间和本机任务进度。
+macOS、Windows、Linux 桌面额度卡片与状态栏 / 托盘工具，显示 Codex 剩余额度、重置时间和本机任务进度。
 
-A native macOS desktop card and menu bar app for Codex quota and local task progress.
+A desktop card and menu bar / tray app for Codex quota and local task progress. Native Swift on macOS; shared Electron UI on Windows and Linux.
 
-[下载 Mac 版 / Download](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.4.0)
+[下载 / Download macOS · Windows · Linux](https://github.com/Haofei-Hu/codex-meter/releases/latest)
 
 ## 下载与安装
 
-1. 在 Releases 下载 `CodexMeter-1.4.0-universal.dmg`（Apple 芯片和 Intel 通用版）。
-2. 打开 DMG，把 **Codex Meter.app** 拖入 **Applications**。
-3. 打开应用，菜单栏会出现额度入口；桌面卡片可以拖动位置。
-4. 本机需要先安装并登录 Codex / ChatGPT 桌面应用，或 Codex CLI。每位用户使用自己的账号，不需要提供 API Key。
+| 系统 | 下载文件 | 安装方法 |
+| --- | --- | --- |
+| macOS 13+，Apple 芯片 / Intel | `CodexMeter-1.5.0-universal.dmg` | 把应用拖入 Applications；也提供 ZIP |
+| Windows 10/11 x64 | `CodexMeter-1.5.0-windows-x64-setup.exe` | 运行安装向导；也提供 `portable.exe` 免安装版 |
+| Linux x64 | `CodexMeter-1.5.0-linux-x64.AppImage` | 文件属性中允许执行，双击启动 |
+| Ubuntu 22.04+ / Debian 12+ x64 | `CodexMeter-1.5.0-linux-x64.deb` | 用系统软件安装器安装，或 `sudo apt install ./文件名.deb` |
 
-要求 **macOS 13 Ventura 或更新版本**。本地测试环境为 Apple 芯片 Mac；Intel 二进制经过交叉编译，尚未在 Intel 实机验证。
+先在本机安装并登录 Codex / ChatGPT 桌面应用，或 [Codex CLI](https://github.com/openai/codex)。每个人使用自己的账号，无需 API Key。Windows / Linux 版需要本机的 **Codex CLI**；如果没有自动找到，在卡片设置中选择 `codex.exe` / `codex`（Windows 也支持 npm 的 `codex.cmd`）。支持启动时设置的 `CODEX_HOME`。
 
-当前下载包使用临时签名，**尚未经过 Apple Developer ID 签名和公证**。macOS 可能阻止首次打开；确认下载来自本仓库后，可以在“系统设置 → 隐私与安全性”查看对应的打开选项。也可以自行审阅源码并构建。无需关闭 Gatekeeper 或系统完整性保护。
+点击桌面卡片右上角 `···` 打开设置；拖动标题移动，拖动右下角调整大小。托盘点击可查看额度与工作进度，右键可退出。Linux 的点击行为由桌面环境决定，托盘菜单也提供“查看额度与工作进度”。
+
+Windows 使用系统托盘，Linux 使用 StatusNotifierItem / Gtk 托盘。两个系统的托盘图标显示彩色额度进度条，提示文字和面板显示具体百分比；macOS 菜单栏额外支持常驻文字。GNOME 可能需要托盘扩展。Wayland 可能限制窗口定位、后台置底或透明效果；推荐在支持托盘的 X11 桌面上使用。AppImage 需要系统支持 FUSE；没有 FUSE 时可选 `.deb`。
+
+Mac 和 Windows 包目前没有开发者正式签名 / 公证，首次打开可能出现系统提示。请从本仓库下载并核对 `SHA256SUMS.txt`；也可以审阅源码后自行构建。Mac 不需要关闭 Gatekeeper 或系统完整性保护。
+
+三个平台均在 GitHub Actions 对应系统构建。Windows / Linux 运行真实窗口、RPC、Plus 双额度、工作进度和缩放冒烟测试；尚未人工覆盖所有硬件与 Linux 桌面环境。Mac Intel 二进制经过交叉编译，尚未在 Intel 实机验证。
 
 ## 功能
 
 - 剩余额度百分比、重置日期和倒计时。
 - Plus 的短时窗口与每周窗口上下排列；具体时长和比例以服务器返回为准。
-- 绿色 → 橙色 → 红色连续渐变；菜单栏同步显示。
+- 绿色 → 橙色 → 红色连续渐变；菜单栏 / 托盘同步显示。
 - 每 15 秒查询额度；打开面板时刷新，显示数据年龄。
 - 登录变化时重新识别账号；退出后显示“等待登录”并停止额度请求。
 - 桌面右下角可直接拖动缩放，也可以在设置中调节 75%–160%。
@@ -33,7 +41,7 @@ A native macOS desktop card and menu bar app for Codex quota and local task prog
 
 ## 锁屏和睡眠
 
-目前是原生桌面窗口，**不是锁屏小组件**。锁屏界面不会显示桌面卡片或菜单栏；解锁后可继续查看。Mac 进入睡眠期间不会刷新。Codex 自己的任务能否继续由 Codex 和系统电源状态决定。
+目前是桌面窗口，**不是锁屏小组件**。三个系统锁屏时都不会显示桌面卡片或状态栏；解锁后可继续查看。系统进入睡眠期间不会刷新。Codex 自己的任务能否继续由 Codex 和系统电源状态决定。
 
 ## 数据来源与隐私
 
@@ -42,11 +50,13 @@ A native macOS desktop card and menu bar app for Codex quota and local task prog
 - 工作进度只读本机 Codex 的 `sessions` 和 `session_index.jsonl`。这些记录格式可能随 Codex 更新而改变。
 - 不直接读取或复制登录令牌，不上传任务记录，不包含分析服务或自建后端。
 - 任务名称与公开进度说明会显示在用户自己的桌面。不会展示私有推理、用户消息正文、工具参数或工具结果。
-- 退出登录或退出 Codex / ChatGPT 应用后暂停更新。
+- 退出登录后暂停额度查询并显示“等待登录”。默认跟随 Codex / ChatGPT 进程退出暂停；Windows / Linux 可在设置中关闭此行为，适合只使用短暂 CLI 会话的用户。
 
 额度表示 **剩余百分比 = 100 − 已用百分比**。Codex 原应用与本工具的请求时刻可能不同，持续使用时可能暂时存在差值。服务器未返回的窗口会明确标注，不能将“未返回”理解为 0% 或 100%。
 
 ## 从源码构建
+
+### macOS 原生版
 
 需要 Xcode 15 或更新版本，或具备 Swift 5.9+ 的 Apple Command Line Tools。
 
@@ -60,6 +70,25 @@ ARCHS="arm64 x86_64" ./build.sh        # 通用二进制
 可用 `CODEX_METER_BUILD_DIR` 更改构建目录，用 `MACOSX_DEPLOYMENT_TARGET` 更改最低系统版本。
 
 源码与测试位于 `Source/`，可复现的图标绘制代码位于 `Assets/MakeIcon.swift`。`--probe` 与 `--work-probe` 会只读当前账号/本机任务，适合手动排查。
+
+### Windows / Linux
+
+需要 Node.js 24+、pnpm 11.25。请在目标系统构建；无需开发者账号即可生成未签名安装包。
+
+```sh
+cd desktop
+pnpm install --frozen-lockfile
+pnpm test                  # 隔离的模拟账号、真实 JSONL RPC、本机任务记录测试
+pnpm assets
+pnpm smoke                 # 真实 Electron 窗口、Plus 双额度、工作进度、隔离和缩放测试
+pnpm start                 # 使用当前用户的 Codex 账号
+pnpm dist:win              # Windows：NSIS 安装包和 portable.exe
+pnpm dist:linux            # Linux：AppImage 和 .deb
+```
+
+Linux 无图形界面的测试环境使用 `xvfb-run -a pnpm smoke`。安装包输出到 `desktop/dist/`。测试使用临时目录和模拟 Codex 进程，不读取真实登录或任务。
+
+跨平台界面与后端位于 `desktop/ui/` 和 `desktop/src/`，不依赖在线网页。图标从相同的 `Assets/AppIcon.png` 生成。`.github/workflows/build-desktop.yml` 在 Windows、Ubuntu 和 macOS 上测试、打包；手动运行时选择 `publish` 才会在所有平台通过后发布 Release，并生成校验文件。
 
 ## 说明
 
