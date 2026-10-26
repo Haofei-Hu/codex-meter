@@ -593,8 +593,8 @@ struct QuotaCard: View {
             if !desktop { QuotaSettings(model: model) }
         }
         .padding(22).frame(width: 332, height: viewportHeight, alignment: .topLeading)
-        .background { if showsSurface { GlassSurface(appearance: model.desktopGlass) } }
         .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .background { if showsSurface { GlassSurface(appearance: model.desktopGlass) } }
         .overlay(alignment: .bottomTrailing) {
             if desktop { ResizeGrip(model: model).frame(width: 30, height: 30).padding(5) }
         }
@@ -643,8 +643,8 @@ struct SettingsPanel: View {
             QuotaSettings(model: model)
         }
         .padding(20).frame(width: 300)
-        .background { GlassSurface(appearance: model.popoverGlass) }
         .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .background { GlassSurface(appearance: model.popoverGlass) }
         .environment(\.colorScheme, model.popoverGlass.theme.colorScheme ?? inheritedColorScheme)
     }
 }

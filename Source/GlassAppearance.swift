@@ -80,6 +80,8 @@ struct GlassAppearanceSettings: View {
         VStack(alignment: .leading, spacing: 9) {
             HStack {
                 Text("玻璃外观").fontWeight(.medium)
+                Text(nativeLiquidGlassAvailable ? "液态玻璃" : "兼容磨砂")
+                    .font(.system(size: 9)).foregroundStyle(glassSecondary)
                 Spacer()
                 Button("还原外观") { model.setGlassAppearance(.system, for: target) }
                     .help("将当前面板还原为默认磨砂外观")

@@ -36,6 +36,16 @@ import SwiftUI
         let effects = descendants(host).compactMap { $0 as? FrostedBackdrop }
         precondition(effects.count == 1 && effects[0].material == .hudWindow && effects[0].alphaValue == 1 && effects[0].state == .active && effects[0].blendingMode == .behindWindow && effects[0].maskImage == nil, "All slider values must keep the complete native background blur")
         precondition(abs(effects[0].density.alphaValue - model.desktopGlass.densityOpacity) < 0.001, "Extended transparency must remove the denser overlaid material")
+        precondition(abs(effects[0].matte.alphaValue - model.desktopGlass.toneOpacity) < 0.001)
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            let glass = effects[0].liquidGlass as? NSGlassEffectView
+            precondition(glass != nil && glass!.contentView === effects[0].matte && glass!.tintColor == nil, "macOS 26 must use the real native Liquid Glass effect")
+            precondition(glass!.style == (transparency > 1 ? .clear : .regular), "Use Apple's native regular/clear glass styles")
+            precondition(glass!.alphaValue == 1 && glass!.cornerRadius == 23)
+            precondition(glass!.frame == effects[0].bounds, "Native glass must cover the complete card at every scale")
+        } else { precondition(effects[0].liquidGlass == nil) }
+        #endif
         precondition(host.alphaValue == 1, "Changing background must not fade card content")
       }
     }
@@ -105,5 +115,5 @@ import SwiftUI
         precondition(popover.appearance?.bestMatch(from: [.aqua, .darkAqua]) == (theme.nativeAppearance ?? NSApp.effectiveAppearance).bestMatch(from: [.aqua, .darkAqua]))
     }
     popover.close(); anchor.orderOut(nil)
-    print("PASS: real 0–200% appearance range, permanent background blur, native tint suppression, no shadow ring, themes, sync/reset/persistence and stable animated popovers")
+    print("PASS: native Liquid Glass on macOS 26, compatible blur fallback, real 0–200% range, permanent background blur, no duplicate tint/shadow, themes, sync/reset/persistence and stable animated popovers")
 }
