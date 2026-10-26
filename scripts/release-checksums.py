@@ -10,8 +10,8 @@ expected = {
     f"CodexMeter-{version}-universal.zip",
     f"CodexMeter-{version}-windows-x64-setup.exe",
     f"CodexMeter-{version}-windows-x64-portable.exe",
-    f"CodexMeter-{version}-linux-x64.AppImage",
-    f"CodexMeter-{version}-linux-x64.deb",
+    f"CodexMeter-{version}-linux-x86_64.AppImage",
+    f"CodexMeter-{version}-linux-amd64.deb",
 }
 actual = {p.name for p in root.iterdir() if p.is_file()}
 if actual != expected:
@@ -21,7 +21,10 @@ for name in sorted(expected):
     file = root / name
     if file.stat().st_size < 100_000:
         raise SystemExit(f"Unexpectedly small installer: {name}")
-    digest = hashlib.file_digest(file.open('rb'), 'sha256').hexdigest()
-    checksums.append(f"{digest}  {name}")
+    digest = hashlib.sha256()
+    with file.open('rb') as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+            digest.update(chunk)
+    checksums.append(f"{digest.hexdigest()}  {name}")
 (root / 'SHA256SUMS.txt').write_text('\n'.join(checksums) + '\n')
 print('\n'.join(checksums))

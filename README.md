@@ -14,8 +14,8 @@ A desktop card and menu bar / tray app for Codex quota and local task progress. 
 | --- | --- | --- |
 | macOS 13+，Apple 芯片 / Intel | `CodexMeter-1.5.0-universal.dmg` | 把应用拖入 Applications；也提供 ZIP |
 | Windows 10/11 x64 | `CodexMeter-1.5.0-windows-x64-setup.exe` | 运行安装向导；也提供 `portable.exe` 免安装版 |
-| Linux x64 | `CodexMeter-1.5.0-linux-x64.AppImage` | 文件属性中允许执行，双击启动 |
-| Ubuntu 22.04+ / Debian 12+ x64 | `CodexMeter-1.5.0-linux-x64.deb` | 用系统软件安装器安装，或 `sudo apt install ./文件名.deb` |
+| Linux x64 | `CodexMeter-1.5.0-linux-x86_64.AppImage` | 文件属性中允许执行，双击启动 |
+| Ubuntu 22.04+ / Debian 12+ x64 | `CodexMeter-1.5.0-linux-amd64.deb` | 用系统软件安装器安装，或 `sudo apt install ./文件名.deb` |
 
 先在本机安装并登录 Codex / ChatGPT 桌面应用，或 [Codex CLI](https://github.com/openai/codex)。每个人使用自己的账号，无需 API Key。Windows / Linux 版需要本机的 **Codex CLI**；如果没有自动找到，在卡片设置中选择 `codex.exe` / `codex`（Windows 也支持 npm 的 `codex.cmd`）。支持启动时设置的 `CODEX_HOME`。
 

@@ -1,0 +1,73 @@
+name: Publish an existing tested build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Completed Build desktop apps run ID (only its three successful build jobs are accepted)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Verify and publish existing installers
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify the build and compare all binary inputs
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        shell: bash
+        run: |
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]] || exit 1
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" > build-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID/jobs?per_page=100" > build-jobs.json
+          python3 - <<'PY'
+          import json, re
+          from pathlib import Path
+          run = json.loads(Path('build-run.json').read_text())
+          jobs = json.loads(Path('build-jobs.json').read_text())['jobs']
+          assert run['path'] == '.github/workflows/build-desktop.yml', 'Wrong build workflow'
+          assert run['event'] == 'workflow_dispatch' and run['head_branch'] == 'main', 'Wrong source branch or event'
+          assert run['status'] == 'completed', 'Build has not completed'
+          assert re.fullmatch(r'[0-9a-f]{40}', run['head_sha']), 'Invalid source revision'
+          for name in ['Windows x64', 'Linux x64', 'macOS universal (native Swift)']:
+              found = [j for j in jobs if j['name'] == name]
+              assert len(found) == 1 and found[0]['conclusion'] == 'success', f'Build did not pass: {name}'
+          Path('build-sha.txt').write_text(run['head_sha'])
+          print('All three native build and test jobs passed at', run['head_sha'])
+          PY
+          build_sha="$(cat build-sha.txt)"
+          git fetch --no-tags origin "$build_sha"
+          git diff --exit-code "$build_sha" HEAD -- Source Assets desktop build.sh VERSION scripts/package.sh scripts/test.sh
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: installers-*
+          path: release-assets
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run_id }}
+      - name: Verify asset set and create checksums
+        run: python3 scripts/release-checksums.py release-assets "$(cat VERSION)"
+      - name: Publish verified installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        shell: bash
+        run: |
+          version="$(cat VERSION)"
+          cp "docs/release-$version.md" release-notes.md
+          printf '\nBuild and tests: https://github.com/%s/actions/runs/%s\n' "$GITHUB_REPOSITORY" "$BUILD_RUN_ID" >> release-notes.md
+          gh release create "v$version" release-assets/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Codex Meter $version · macOS / Windows / Linux" --notes-file release-notes.md

@@ -4,7 +4,7 @@
 
 - **macOS 13+**：`universal.dmg`，Apple 芯片和 Intel 通用；也提供 ZIP。
 - **Windows 10/11 x64**：`windows-x64-setup.exe` 安装版，或 `portable.exe` 免安装版。
-- **Linux x64**：`linux-x64.AppImage`，或 Ubuntu / Debian 的 `.deb`。
+- **Linux x64**：`linux-x86_64.AppImage`，或 Ubuntu / Debian 的 `.deb`。
 
 首次使用请先安装 Codex CLI 并登录自己的 ChatGPT 账号；如果未自动找到程序，在设置中选择 Codex 可执行文件。支持 `CODEX_HOME`。Plus 的短时和每周额度分开显示，服务器未返回的窗口会明确标记。
 
