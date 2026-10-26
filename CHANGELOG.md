@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1.2 (macOS)
+
+- Keep the full quota ring stroke inside its 94-point layout bounds to prevent scroll-view edge clipping.
+- Add a rendered-pixel regression for ring overflow; retain the automatic replacement PKG installer.
+
 ## 1.5.1.1 (macOS)
 
 - Replace implicit background dragging with native AppKit drag regions for Plus and Pro.

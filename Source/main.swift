@@ -485,6 +485,24 @@ func remainingText(_ date: Date, now: Date) -> String {
     let days = seconds / 86400; let hours = seconds % 86400 / 3600; let mins = seconds % 3600 / 60
     return days > 0 ? "\(days)天 \(hours)小时后重置" : hours > 0 ? "\(hours)小时 \(mins)分钟后重置" : "\(max(1, mins))分钟后重置"
 }
+struct QuotaRing: View {
+    let remaining: Int?
+    // Strokes extend on both sides of the path. Keep the full stroke plus an
+    // antialiasing margin inside the layout bounds, including in a ScrollView.
+    private let inset: CGFloat = 4
+    var body: some View {
+        ZStack {
+            Circle().inset(by: inset).stroke(.white.opacity(0.08), lineWidth: 6)
+            Circle().inset(by: inset).trim(from: 0, to: Double(remaining ?? 0) / 100)
+                .stroke(quotaColor(remaining ?? 100), style: StrokeStyle(lineWidth: 6, lineCap: .round)).rotationEffect(.degrees(-90))
+                .animation(.easeInOut(duration: 1.2), value: remaining)
+            VStack(spacing: 0) {
+                Text(remaining.map(String.init) ?? "—").font(.system(size: 34, weight: .medium, design: .rounded)).monospacedDigit()
+                Text(remaining == nil ? "未返回" : "% 剩余").font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
+            }
+        }.frame(width: 94, height: 94)
+    }
+}
 struct QuotaCard: View {
     @ObservedObject var model: QuotaModel
     var desktop = false
@@ -515,16 +533,7 @@ struct QuotaCard: View {
             } else {
                 ForEach(model.displayRows) { row in
                     HStack(spacing: 20) {
-                        ZStack {
-                            Circle().stroke(.white.opacity(0.08), lineWidth: 6)
-                            Circle().trim(from: 0, to: Double(row.remaining ?? 0) / 100)
-                                .stroke(quotaColor(row.remaining ?? 100), style: StrokeStyle(lineWidth: 6, lineCap: .round)).rotationEffect(.degrees(-90))
-                                .animation(.easeInOut(duration: 1.2), value: row.remaining)
-                            VStack(spacing: 0) {
-                                Text(row.remaining.map(String.init) ?? "—").font(.system(size: 34, weight: .medium, design: .rounded)).monospacedDigit()
-                                Text(row.window == nil ? "未返回" : "% 剩余").font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
-                            }
-                        }.frame(width: 94, height: 94)
+                        QuotaRing(remaining: row.remaining)
                         VStack(alignment: .leading, spacing: 8) {
                             Text(row.group == "Codex" ? row.label : "\(row.group) · \(row.label)").font(.system(size: 13, weight: .semibold))
                             if let reset = row.window?.resetsAt {

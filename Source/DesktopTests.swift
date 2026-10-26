@@ -3,6 +3,8 @@ import SwiftUI
 
 @MainActor func runDesktopCardTests(directory: String) {
     let app = NSApplication.shared
+    try! FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+    testQuotaRingBounds(directory: directory)
     app.setActivationPolicy(.accessory)
     let root = URL(fileURLWithPath: directory)
     try! FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -65,4 +67,25 @@ import SwiftUI
         app.run()
     }
     panel.orderOut(nil)
+}
+
+@MainActor func testQuotaRingBounds(directory: String) {
+    let host = NSHostingView(rootView: QuotaRing(remaining: 100).padding(8).background(Color.black).environment(\.colorScheme, .dark))
+    host.frame = NSRect(x: 0, y: 0, width: 110, height: 110)
+    host.layoutSubtreeIfNeeded()
+    let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+    host.cacheDisplay(in: host.bounds, to: rep)
+    let scaleX = CGFloat(rep.pixelsWide) / 110, scaleY = CGFloat(rep.pixelsHigh) / 110
+    var colored = 0
+    for y in 0..<rep.pixelsHigh {
+        for x in 0..<rep.pixelsWide {
+            guard let color = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+                  color.redComponent < 0.65, color.greenComponent > 0.7, color.blueComponent > 0.5 else { continue }
+            colored += 1
+            precondition(CGFloat(x) >= 8 * scaleX && CGFloat(x) < 102 * scaleX && CGFloat(y) >= 8 * scaleY && CGFloat(y) < 102 * scaleY, "Ring stroke escapes its layout bounds and will be clipped by a scroll view")
+        }
+    }
+    precondition(colored > 100, "Ring did not render")
+    try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: directory).appendingPathComponent("ring-bounds.png"))
+    print("PASS: rendered ring stroke stays entirely inside its layout bounds")
 }
