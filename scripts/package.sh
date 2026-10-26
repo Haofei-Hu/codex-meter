@@ -6,6 +6,9 @@ DIST_DIR="${CODEX_METER_DIST_DIR:-$ROOT/dist}"
 APP="$BUILD_DIR/Codex Meter.app"
 VERSION=$(tr -d '\n' < "$ROOT/VERSION")
 [[ -d "$APP" ]] || ARCHS="arm64 x86_64" "$ROOT/build.sh"
+# Native UI tests can add Finder/resource-fork metadata to the generated bundle.
+xattr -cr "$APP"
+codesign --verify --deep --strict "$APP"
 mkdir -p "$DIST_DIR" "$BUILD_DIR/dmg" "$BUILD_DIR/pkg-root" "$BUILD_DIR/pkg-scripts"
 ditto "$APP" "$BUILD_DIR/pkg-root/Codex Meter.app"
 HELPERS=()
