@@ -2,6 +2,7 @@
 const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, screen, dialog, powerMonitor } = require('electron');
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const { Backend } = require('./backend.cjs');
+const { autostartExecutable } = require('./platform.cjs');
 const { clamp, menuFrame } = require('./model.cjs');
 const { trayPNG } = require('./tray-icon.cjs');
 const smoke = !app.isPackaged && process.argv.includes('--smoke-test');
@@ -84,13 +85,13 @@ if (!app.requestSingleInstanceLock()) { app.quit(); } else {
     if (process.platform === 'linux') {
       const dir = path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'autostart'), file = path.join(dir, 'codex-meter.desktop');
       if (value) {
-        const exe = process.env.APPIMAGE || process.execPath;
+        const exe = autostartExecutable(process.platform, process.env, process.execPath);
         if (/[\r\n]/.test(exe)) throw new Error('应用路径不支持换行');
         fs.mkdirSync(dir, { recursive: true });
         const quoted = exe.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/%/g, '%%');
         fs.writeFileSync(file, `[Desktop Entry]\nType=Application\nName=Codex Meter\nExec="${quoted}"\nTerminal=false\nX-GNOME-Autostart-enabled=true\n`, { mode: 0o600 });
       } else if (fs.existsSync(file)) fs.unlinkSync(file);
-    } else app.setLoginItemSettings({ openAtLogin: value, path: process.execPath });
+    } else app.setLoginItemSettings({ openAtLogin: value, path: autostartExecutable(process.platform, process.env, process.execPath) });
   }
   function setPreference(key, value) {
     if (key === 'scale') { if (!Number.isFinite(value)) throw new Error('无效的缩放值'); prefs.scale = clamp(value, 0.75, 1.6); }

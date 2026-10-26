@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
-const { cliLaunch, hasHost, authStamp } = require('../src/platform.cjs');
+const { cliLaunch, hasHost, authStamp, autostartExecutable } = require('../src/platform.cjs');
 test('Windows npm shim resolves a literal script path without a command shell', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'meter path & spaces-')); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const shim = path.join(root, 'codex.cmd'), script = path.join(root, 'node_modules', '@openai', 'codex', 'bin', 'codex.js');
@@ -15,4 +15,10 @@ test('Meter and all its app-server descendants do not count as the Codex host', 
   assert.equal(hasHost(own), false);
   assert.equal(hasHost([...own, { pid: 800003, parent: 1, name: 'Codex.exe' }]), true);
   assert.equal(hasHost([...own, { pid: 800004, parent: 1, name: 'codex' }]), true);
+});
+
+test('portable autostart targets the persistent launcher rather than extracted temporary Electron', () => {
+  assert.equal(autostartExecutable('win32', { PORTABLE_EXECUTABLE_FILE: 'C:\\Apps\\Meter.exe' }, 'C:\\Temp\\extracted.exe'), 'C:\\Apps\\Meter.exe');
+  assert.equal(autostartExecutable('linux', { APPIMAGE: '/home/test/Codex Meter.AppImage' }, '/tmp/.mount_meter/codex-meter'), '/home/test/Codex Meter.AppImage');
+  assert.equal(autostartExecutable('win32', {}, 'C:\\Apps\\Codex Meter.exe'), 'C:\\Apps\\Codex Meter.exe');
 });

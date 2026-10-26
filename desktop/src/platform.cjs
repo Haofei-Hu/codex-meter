@@ -51,4 +51,10 @@ function hasHost(list) {
   for (let changed = true; changed;) { changed = false; for (const p of list) if (excluded.has(p.parent) && !excluded.has(p.pid)) { excluded.add(p.pid); changed = true; } }
   return list.some(p => !excluded.has(p.pid) && /^(codex|chatgpt)(?:[ ._-].*)?(?:\.exe)?$/i.test(p.name));
 }
-module.exports = { cliLaunch, authStamp, hostRunning, hasHost };
+function autostartExecutable(platform, env, fallback) {
+  // Portable launchers unpack Electron into a temporary directory. Persist the outer launcher.
+  if (platform === 'win32') return env.PORTABLE_EXECUTABLE_FILE || fallback;
+  if (platform === 'linux') return env.APPIMAGE || fallback;
+  return fallback;
+}
+module.exports = { cliLaunch, authStamp, hostRunning, hasHost, autostartExecutable };
