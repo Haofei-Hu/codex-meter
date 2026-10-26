@@ -490,10 +490,11 @@ struct QuotaRing: View {
     // Strokes extend on both sides of the path. Keep the full stroke plus an
     // antialiasing margin inside the layout bounds, including in a ScrollView.
     private let inset: CGFloat = 4
+    private var fraction: Double { Double(max(0, min(100, remaining ?? 0))) / 100 }
     var body: some View {
         ZStack {
             Circle().inset(by: inset).stroke(.white.opacity(0.08), lineWidth: 6)
-            Circle().inset(by: inset).trim(from: 0, to: Double(remaining ?? 0) / 100)
+            Circle().inset(by: inset).trim(from: 1 - fraction, to: 1)
                 .stroke(quotaColor(remaining ?? 100), style: StrokeStyle(lineWidth: 6, lineCap: .round)).rotationEffect(.degrees(-90))
                 .animation(.easeInOut(duration: 1.2), value: remaining)
             VStack(spacing: 0) {

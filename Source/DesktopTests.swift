@@ -5,6 +5,7 @@ import SwiftUI
     let app = NSApplication.shared
     try! FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
     testQuotaRingBounds(directory: directory)
+    testQuotaRingClockwise(directory: directory)
     app.setActivationPolicy(.accessory)
     let root = URL(fileURLWithPath: directory)
     try! FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -88,4 +89,31 @@ import SwiftUI
     precondition(colored > 100, "Ring did not render")
     try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: directory).appendingPathComponent("ring-bounds.png"))
     print("PASS: rendered ring stroke stays entirely inside its layout bounds")
+}
+
+@MainActor func testQuotaRingClockwise(directory: String) {
+    for value in [95, 75, 25] {
+        let host = NSHostingView(rootView: QuotaRing(remaining: value).padding(8).background(Color.black).environment(\.colorScheme, .dark))
+        host.frame = NSRect(x: 0, y: 0, width: 110, height: 110)
+        host.layoutSubtreeIfNeeded()
+        let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+        host.cacheDisplay(in: host.bounds, to: rep)
+        func colored(_ x: Int, _ y: Int) -> Bool {
+            guard let c = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { return false }
+            let colors = [c.redComponent, c.greenComponent, c.blueComponent]
+            return colors.max()! - colors.min()! > 0.2 && colors.max()! > 0.4
+        }
+        var left = 0, right = 0
+        for y in 0..<rep.pixelsHigh {
+            for x in 0..<rep.pixelsWide where colored(x, y) {
+                if x < rep.pixelsWide / 2 { left += 1 } else { right += 1 }
+            }
+        }
+        // The used gap advances from the top into the right half. Remaining
+        // paint must favor the left half, distinguishing clockwise from both
+        // the old counterclockwise gap and the rejected symmetric design.
+        precondition(left + right > 100 && Double(left - right) / Double(left + right) > 0.015, "Quota gap must advance clockwise from twelve o'clock")
+        try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: directory).appendingPathComponent("ring-gap-\(value).png"))
+    }
+    print("PASS: rendered quota gaps advance clockwise from twelve o'clock at 95%, 75%, and 25%")
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1.3 (macOS)
+
+- Advance the used-quota gap clockwise from twelve o'clock as the remaining quota decreases.
+- Verify rendered clockwise direction at 95%, 75%, and 25%.
+
 ## 1.5.1.2 (macOS)
 
 - Keep the full quota ring stroke inside its 94-point layout bounds to prevent scroll-view edge clipping.
