@@ -48,3 +48,30 @@ test('host exit pauses queries, startup resumes, missing Plus window stays unkno
   running = true; await backend.inspectHost(); await until(() => backend.state.phase === 'ready');
   assert.equal(backend.state.account.email, 'plus@example.test');
 });
+
+test('runtime discovery errors do not mean logout, and recheck can recover', async t => {
+  let missing=true, home;
+  const f=fixture(t,{launch:undefined,resolveLaunch:async()=>{
+    if(missing) { const error=new Error('runtime missing'); error.code='CLI_NOT_FOUND'; throw error; }
+    return {command:process.execPath,args:[path.join(__dirname,'mock-codex.cjs'),home]};
+  }}); home=f.home; f.backend.start();
+  await until(()=>f.backend.state.phase==='error');
+  assert.equal(f.backend.state.errorCode,'CLI_NOT_FOUND'); assert.equal(f.backend.state.account,null);
+  missing=false; f.backend.reload(); await until(()=>f.backend.state.phase==='ready');
+  assert.equal(f.backend.state.errorCode,null); assert.equal(f.backend.state.account.email,'first@example.test');
+});
+test('host exit during asynchronous runtime discovery cannot start a stale backend', async t => {
+  let finish;
+  const {backend,home,methods}=fixture(t,{launch:undefined,resolveLaunch:()=>new Promise(resolve=>{finish=resolve;})});
+  backend.start(); await until(()=>!!finish); backend.pause('Codex closed');
+  finish({command:process.execPath,args:[path.join(__dirname,'mock-codex.cjs'),home]}); await delay(120);
+  assert.equal(backend.rpc,null); assert.equal(backend.state.phase,'paused'); assert.deepEqual(methods(),[]);
+});
+test('first login wakes the backend when the Codex home directory did not exist at startup', async t => {
+  const {backend,home}=fixture(t);
+  const firstHome=path.join(home,'.codex'); backend.home=firstHome; backend.authFile=path.join(firstHome,'auth.json'); backend.stamp='missing';
+  backend.start(); await until(()=>backend.state.phase==='ready');
+  fs.mkdirSync(firstHome); fs.writeFileSync(path.join(firstHome,'auth.json'),'new-login-marker');
+  await until(()=>backend.stamp!=='missing'); await until(()=>backend.state.phase==='ready');
+  assert.equal(backend.state.account.email,'first@example.test');
+});

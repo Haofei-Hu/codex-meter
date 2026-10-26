@@ -16,3 +16,5 @@ auth.json
 node_modules/
 desktop/assets/icon.png
 desktop/assets/icon.ico
+
+desktop/vendor/

@@ -48,7 +48,7 @@ function render(state) {
     const stale = waiting() || !!state.error || age == null || age > 35;
     const status = waiting() ? '已暂停' : state.loading ? '同步中' : stale ? '待更新' : age < 2 ? '刚更新' : `${age}秒前`;
     const plan = ({ plus: 'Plus', pro: 'Pro', prolite: 'Pro Lite', free: 'Free', team: 'Team', business: 'Business', enterprise: 'Enterprise', edu: 'Edu' })[state.account?.planType] || state.account?.planType || 'ChatGPT';
-    const account = state.account ? `${plan}${state.account.email ? ' · ' + state.account.email : ''}` : state.loading ? '正在识别当前账号…' : '未登录 ChatGPT 账号';
+    const account = state.account ? `${plan}${state.account.email ? ' · ' + state.account.email : ''}` : state.loading ? '正在识别当前账号…' : state.phase === 'error' ? '连接失败 · 尚未读取登录状态' : '未登录 ChatGPT 账号';
     cardTop.innerHTML = `${preview ? '<div class="demo">界面演示数据</div>' : ''}<header class="header" title="拖动这里移动桌面卡片"><span class="logo">&lt;/&gt;</span><h1>Codex 剩余额度</h1><span class="status"><i class="dot ${stale ? 'stale' : ''}"></i>${status}</span>${view === 'desktop' ? '<button class="more" data-action="settings" aria-label="卡片设置">···</button>' : ''}</header>`;
     content.innerHTML = `<div class="account" title="${html(account)}">${html(account)}</div>
       ${!state.rows.length ? `<div class="empty"><strong>—</strong><span>${html(state.reason || (state.loading ? '正在读取你的 Codex 额度…' : '暂未获取到额度'))}</span></div>` : `<div class="quotas">${state.rows.map(row => {

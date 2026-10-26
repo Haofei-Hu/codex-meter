@@ -2,7 +2,7 @@
 const { EventEmitter } = require('node:events');
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const { CodexRPC } = require('./rpc.cjs');
-const { cliLaunch, authStamp, hostRunning } = require('./platform.cjs');
+const { resolveCliLaunch, authStamp, hostRunning } = require('./platform.cjs');
 const { quotaRows } = require('./model.cjs');
 const { WorkTracker } = require('./work.cjs');
 class Backend extends EventEmitter {
@@ -12,17 +12,24 @@ class Backend extends EventEmitter {
     this.refreshing = false; this.checking = false; this.nextLimits = 0; this.nextWork = 0; this.nextHost = 0; this.workBusy = false; this.hostBusy = false;
     this.stopped = false; this.retryCount = 0; this.partialRetries = 0; this.followHost = options.followHost !== false; this.lastHost = null;
     this.workTracker = new WorkTracker(this.home);
-    this.state = { phase: 'loading', loading: false, account: null, rows: [], lastUpdate: null, nextUpdate: null, error: null, reason: null, now: Date.now(), work: { state: 'loading', activeCount: 0, tasks: [] } };
+    this.state = { phase: 'loading', loading: false, account: null, rows: [], lastUpdate: null, nextUpdate: null, error: null, errorCode: null, reason: null, now: Date.now(), work: { state: 'loading', activeCount: 0, tasks: [] } };
   }
   start() {
     this.stopped = false;
-    try { this.watcher = fs.watch(this.home, { persistent: false }, () => {
+    this.watchLoginFiles();
+    this.timer = setInterval(() => this.tick(), 1000);
+    this.tick();
+  }
+  watchLoginFiles() {
+    this.watcher?.close(); this.watcher = null;
+    const directory = fs.existsSync(this.home) ? this.home : path.dirname(this.home);
+    try { this.watcher = fs.watch(directory, { persistent: false }, () => {
+      if (this.stopped) return;
+      if (directory !== this.home && fs.existsSync(this.home)) this.watchLoginFiles();
       if (authStamp(this.authFile) === this.stamp) return;
       clearTimeout(this.authDebounce);
       this.authDebounce = setTimeout(() => this.checkLoginChange(), 300);
     }); } catch {}
-    this.timer = setInterval(() => this.tick(), 1000);
-    this.tick();
   }
   stop() {
     this.stopped = true; clearInterval(this.timer); clearTimeout(this.authDebounce); clearTimeout(this.retryTimer); this.watcher?.close();
@@ -57,7 +64,7 @@ class Backend extends EventEmitter {
   }
   resetConnection() { this.generation++; this.rpc?.close(); this.rpc = null; this.ready = false; this.refreshing = false; this.checking = false; clearTimeout(this.retryTimer); }
   clearAccount() {
-    this.state.account = null; this.state.rows = []; this.state.lastUpdate = null; this.state.error = null;
+    this.state.account = null; this.state.rows = []; this.state.lastUpdate = null; this.state.error = null; this.state.errorCode = null;
     this.state.work = { state: 'paused', activeCount: 0, tasks: [] }; this.workTracker.clear();
   }
   pause(reason) {
@@ -77,7 +84,9 @@ class Backend extends EventEmitter {
   setCLI(file) { this.options.cliPath = file; this.reload(); }
   async client() {
     if (this.rpc) return this.rpc;
-    const launch = this.options.launch || cliLaunch(this.options.cliPath);
+    const generation = this.generation;
+    const launch = this.options.launch || await (this.options.resolveLaunch || resolveCliLaunch)(this.options.cliPath, { runtimeDir: this.options.runtimeDir });
+    if (this.stopped || generation !== this.generation) throw new Error('连接状态已变化');
     const rpc = new CodexRPC(launch, { cwd: os.homedir() }); this.rpc = rpc;
     rpc.on('notification', message => { if (this.rpc === rpc) this.notification(message); });
     rpc.on('disconnected', error => {
@@ -85,7 +94,7 @@ class Backend extends EventEmitter {
       this.generation++; this.rpc = null; this.ready = false; this.refreshing = false; this.checking = false;
       if (!['waiting', 'paused'].includes(this.state.phase)) this.fail(error);
     });
-    await rpc.connect();
+    try { await rpc.connect(); } catch (error) { if (this.rpc === rpc) { this.rpc = null; rpc.close(); } throw error; }
     if (this.rpc !== rpc) throw new Error('连接已变化');
     this.ready = true; return rpc;
   }
@@ -114,7 +123,7 @@ class Backend extends EventEmitter {
   accept(result, authoritative) {
     const rows = quotaRows(result, this.state.account?.planType);
     if (!rows.some(x => x.remaining != null)) { this.fail(new Error('服务器尚未返回百分比额度')); return; }
-    Object.assign(this.state, { rows, phase: 'ready', error: null, reason: null, lastUpdate: Date.now() });
+    Object.assign(this.state, { rows, phase: 'ready', error: null, errorCode: null, reason: null, lastUpdate: Date.now() });
     if (authoritative) this.nextLimits = Date.now() + 15000;
     if (rows.some(x => x.remaining == null) && this.partialRetries++ < 3) {
       clearTimeout(this.retryTimer); this.retryTimer = setTimeout(() => this.refresh(), this.partialRetries * 2000);
@@ -131,7 +140,7 @@ class Backend extends EventEmitter {
       Object.assign(this.state, { phase: 'loading', loading: false, reason: null }); this.partialRetries = 0; this.refresh();
     } else if (message.method === 'account/rateLimits/updated' && this.state.account && !this.refreshing && this.state.phase === 'ready') this.accept(message.params, false);
   }
-  fail(error) { Object.assign(this.state, { phase: 'error', error: error.message || String(error), loading: false }); this.nextLimits = Date.now() + 15000; this.publish(); }
+  fail(error) { Object.assign(this.state, { phase: 'error', error: error.message || String(error), errorCode: error.code || 'CONNECTION_FAILED', loading: false }); this.nextLimits = Date.now() + 15000; this.publish(); }
   async scanWork() {
     const generation = this.generation; this.nextWork = Date.now() + 2000; this.workBusy = true;
     try { const work = await this.workTracker.scan(); if (generation === this.generation && this.state.account && !this.stopped) { this.state.work = work; this.publish(); } }

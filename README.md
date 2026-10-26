@@ -13,15 +13,15 @@ A desktop card and menu bar / tray app for Codex quota and local task progress. 
 | 系统 | 下载文件 | 安装方法 |
 | --- | --- | --- |
 | macOS 13+，Apple 芯片 / Intel | [1.5.1.3 PKG 安装包](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1.3) | 自动替换旧版、清理旧副本；保留账号与设置 |
-| Windows 10/11 x64 | [1.5.1 下载页](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1) · `windows-x64-setup.exe` | 运行安装向导；也提供 `portable.exe` 免安装版 |
+| Windows 10/11 x64 | [1.5.2 下载页](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.2) · `windows-x64-setup.exe` | 运行安装向导；也提供 `portable.exe` 免安装版 |
 | Linux x64 | [1.5.1 下载页](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1) · AppImage | 文件属性中允许执行，双击启动 |
 | Ubuntu 22.04+ / Debian 12+ x64 | [1.5.1 下载页](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1) · deb | 用系统软件安装器安装，或 `sudo apt install ./文件名.deb` |
 
 **Mac 升级请优先使用 `.pkg`**：安装到 `/Applications/Codex Meter.app`，先停止旧程序并覆盖同一路径的旧版本，安装成功后把 `/Applications` 和当前用户 `~/Applications` 中同一 bundle ID 的其他旧副本移入废纸篓。保留账号、应用偏好与任务记录，不清空废纸篓。安装失败时不会清理其他旧副本；不移除比安装包更新的版本。DMG / ZIP 仍是手动安装方式，不自动清理旧副本。
 
-Mac 原生版当前为 **1.5.1.3**；Windows / Linux 仍为 **1.5.1**。Mac 采用明确的 AppKit 拖动区域，Plus / Pro 均支持；桌面卡片按当前屏幕可用空间适配，过长内容可以滚动，顶部和底部控件保持可见。
+Mac 原生版当前为 **1.5.1.3**；Windows 为 **1.5.2**，Linux 为 **1.5.1**。Mac 采用明确的 AppKit 拖动区域，Plus / Pro 均支持；桌面卡片按当前屏幕可用空间适配，过长内容可以滚动，顶部和底部控件保持可见。
 
-先在本机安装并登录 Codex / ChatGPT 桌面应用，或 [Codex CLI](https://github.com/openai/codex)。每个人使用自己的账号，无需 API Key。Windows / Linux 版需要本机的 **Codex CLI**；如果没有自动找到，在卡片设置中选择 `codex.exe` / `codex`（Windows 也支持 npm 的 `codex.cmd`）。支持启动时设置的 `CODEX_HOME`。
+先在本机安装并登录 Codex / ChatGPT 桌面应用，或 [Codex CLI](https://github.com/openai/codex)。每个人使用自己的账号，无需 API Key。Windows 1.5.2 会查找 Codex 桌面应用（含微软商店版）的后台程序，安装包也内置官方 Codex 0.164.0 作为备用，无需单独安装 CLI。Linux 仍需本机的 **Codex CLI**。如果没有自动找到，可在卡片设置中选择后台 `codex.exe` / `codex`（Windows 也支持 npm 的 `codex.cmd`，不能选择桌面 GUI 程序）。支持启动时设置的 `CODEX_HOME`；Meter 与 Codex 必须使用同一个系统用户和配置目录。WSL 与 Windows 的登录目录是分开的。
 
 点击桌面卡片右上角 `···` 打开设置；拖动标题或卡片内容移动，拖动右下角调整大小。窗口会按当前屏幕自动适配；内容过多时中间区域可以滚动，标题、刷新按钮和缩放手柄保持可见。托盘点击可查看额度与工作进度，右键可退出。Linux 的点击行为由桌面环境决定，托盘菜单也提供“查看额度与工作进度”。
 
@@ -82,6 +82,8 @@ ARCHS="arm64 x86_64" ./build.sh        # 通用二进制
 ```sh
 cd desktop
 pnpm install --frozen-lockfile
+pnpm prepare:win           # 仅 Windows：下载锁定的官方备用运行程序
+pnpm test:runtime          # 仅 Windows：用临时空账号实际连接备用运行程序
 pnpm test                  # 隔离的模拟账号、真实 JSONL RPC、本机任务记录测试
 pnpm assets
 pnpm smoke                 # 真实 Electron 窗口、Plus 双额度、工作进度、隔离和缩放测试
@@ -90,11 +92,13 @@ pnpm dist:win              # Windows：NSIS 安装包和 portable.exe
 pnpm dist:linux            # Linux：AppImage 和 .deb
 ```
 
-Linux 无图形界面的测试环境使用 `xvfb-run -a pnpm smoke`。安装包输出到 `desktop/dist/`。测试使用临时目录和模拟 Codex 进程，不读取真实登录或任务。
+Linux 无图形界面的测试环境使用 `xvfb-run -a pnpm smoke`。安装包输出到 `desktop/dist/`。测试使用临时目录、模拟 Codex 进程或无登录的内置运行程序，不读取真实登录或任务。
 
 跨平台界面与后端位于 `desktop/ui/` 和 `desktop/src/`，不依赖在线网页。图标从相同的 `Assets/AppIcon.png` 生成。`.github/workflows/build-desktop.yml` 在 Windows、Ubuntu 和 macOS 上测试、打包；手动运行时选择 `publish` 才会在所有平台通过后发布 Release，并生成校验文件。
 
 ## 说明
+
+Windows 单独发布使用 `.github/workflows/release-windows.yml`，验证 Windows 运行程序和最终安装包后发布，不改变 Mac 版本。备用运行程序来自锁定的 `@openai/codex` 官方 npm 包（Apache-2.0），分开保存在 `desktop/vendor-package/`，按当前 Windows 架构打包；许可证和 NOTICE 随安装包附带。程序源码为 MIT。
 
 Mac 专用发布使用 `.github/workflows/release-macos.yml`；四段维护版本不改变 Windows / Linux 的 npm 包版本。
 

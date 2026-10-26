@@ -1,0 +1,8 @@
+{
+  "name": "codex-meter-windows-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "license": "MIT",
+  "packageManager": "pnpm@11.25.0",
+  "dependencies": { "@openai/codex": "0.164.0" }
+}

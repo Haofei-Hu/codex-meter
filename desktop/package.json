@@ -1,6 +1,6 @@
 {
   "name": "codex-meter-desktop",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Codex quota and local task progress for Windows and Linux",
   "author": {
     "name": "Haofei-Hu",
@@ -13,9 +13,11 @@
     "test": "node --test test/*.test.cjs",
     "assets": "node scripts/assets.cjs",
     "pack": "pnpm assets && electron-builder --dir --publish never",
-    "dist:win": "pnpm assets && electron-builder --win --x64 --publish never",
+    "dist:win": "pnpm prepare:win && pnpm assets && electron-builder --win --x64 --publish never",
     "dist:linux": "pnpm assets && electron-builder --linux --x64 --publish never",
-    "smoke": "electron . --smoke-test"
+    "smoke": "electron . --smoke-test",
+    "prepare:win": "pnpm --dir vendor-package install --frozen-lockfile && node scripts/vendor-codex.cjs",
+    "test:runtime": "node --test test/bundled-runtime.cjs"
   },
   "dependencies": {
     "pngjs": "7.0.0"
@@ -50,6 +52,12 @@
       "target": [
         "nsis",
         "portable"
+      ],
+      "extraResources": [
+        {
+          "from": "vendor/codex",
+          "to": "codex"
+        }
       ]
     },
     "nsis": {

@@ -121,7 +121,7 @@ if (!app.requestSingleInstanceLock()) { app.quit(); } else {
   app.on('window-all-closed', () => {});
   app.whenReady().then(async () => {
     prefsFile = path.join(app.getPath('userData'), 'preferences.json'); prefs = loadPrefs();
-    let options = { cliPath: prefs.cliPath, followHost: prefs.followHost };
+    let options = { cliPath: prefs.cliPath, followHost: prefs.followHost, runtimeDir: app.isPackaged ? path.join(process.resourcesPath, 'codex') : path.join(__dirname, '../vendor/codex') };
     if (smoke) {
       const home = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-meter-fixture-'));
       const fixture = path.join(__dirname, '../test/mock-codex.cjs');

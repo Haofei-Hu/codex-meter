@@ -31,7 +31,7 @@ class CodexRPC extends EventEmitter {
       this.pending.clear(); this.emit('disconnected', error);
     };
     proc.on('error', error => ended(error)); proc.on('exit', () => ended(new Error('Codex 连接已断开')));
-    await this.request('initialize', { clientInfo: { name: 'codex_meter', title: 'Codex Meter', version: '1.5.1' } });
+    await this.request('initialize', { clientInfo: { name: 'codex_meter', title: 'Codex Meter', version: '1.5.2' } });
     this.send({ method: 'initialized', params: {} });
   }
   send(message) {

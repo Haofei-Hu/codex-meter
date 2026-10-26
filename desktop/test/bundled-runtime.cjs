@@ -1,0 +1,22 @@
+'use strict';
+const test = require('node:test'), assert = require('node:assert/strict');
+const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { CodexRPC } = require('../src/rpc.cjs');
+const crypto = require('node:crypto');
+const { setTimeout: delay } = require('node:timers/promises');
+const { cliLaunch } = require('../src/platform.cjs');
+test('real bundled Windows runtime works with no installed CLI or real login', {skip:process.platform!=='win32',timeout:30000}, async t => {
+  const home=fs.mkdtempSync(path.join(os.tmpdir(),'meter-runtime-test-'));
+  const runtimeDir=path.resolve(process.env.CODEX_METER_TEST_RUNTIME || path.join(__dirname,'../vendor/codex'));
+  const manifest=JSON.parse(fs.readFileSync(path.join(runtimeDir,'runtime.json'),'utf8'));
+  assert.equal(manifest.version,'0.164.0');
+  const launch=cliLaunch(null,{platform:'win32',home,env:{PATH:'',LOCALAPPDATA:path.join(home,'Local')},runtimeDir});
+  assert.equal(launch.source,'bundled');
+  assert.equal(crypto.createHash('sha256').update(fs.readFileSync(launch.command)).digest('hex'),manifest.sha256);
+  launch.env={...launch.env,CODEX_HOME:home};
+  const rpc=new CodexRPC(launch,{cwd:home});
+  t.after(async()=>{rpc.close();await delay(150);fs.rmSync(home,{recursive:true,force:true,maxRetries:6,retryDelay:150});});
+  await rpc.connect();
+  const account=await rpc.request('account/read',{refreshToken:false});
+  assert.equal(account.account,null);
+});
