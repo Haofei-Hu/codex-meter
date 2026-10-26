@@ -4,10 +4,10 @@ import SwiftUI
 let glassSecondary = Color.secondary
 let glassTertiary = Color(nsColor: .tertiaryLabelColor)
 
-// Use the same system material as a native popover. Do not paint a tint,
-// gradient or border over it, and do not override the system appearance.
+// Fade the background effect only; foreground text and controls stay opaque.
 struct GlassBackdrop: NSViewRepresentable {
     let cornerRadius: CGFloat
+    let appearance: GlassAppearance
     func makeNSView(context: Context) -> FrostedBackdrop {
         let view = FrostedBackdrop()
         view.material = .popover
@@ -20,6 +20,7 @@ struct GlassBackdrop: NSViewRepresentable {
     }
     func updateNSView(_ view: FrostedBackdrop, context: Context) {
         view.layer?.cornerRadius = cornerRadius
+        view.alphaValue = appearance.frost
     }
 }
 final class FrostedBackdrop: NSVisualEffectView {
@@ -28,8 +29,13 @@ final class FrostedBackdrop: NSVisualEffectView {
 }
 struct GlassSurface: View {
     var cornerRadius: CGFloat = 23
+    var appearance: GlassAppearance = .system
     var body: some View {
-        GlassBackdrop(cornerRadius: cornerRadius)
+        ZStack {
+            GlassBackdrop(cornerRadius: cornerRadius, appearance: appearance)
+            GlassTone(appearance: appearance)
+        }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }

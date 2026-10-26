@@ -9,6 +9,7 @@ import SwiftUI
     app.setActivationPolicy(.accessory)
     let root = URL(fileURLWithPath: directory)
     try! FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    testGlassAppearance(directory: root)
     let suite = "local.codexquota.desktop-test." + UUID().uuidString
     let prefs = UserDefaults(suiteName: suite)!
     defer { prefs.removePersistentDomain(forName: suite) }

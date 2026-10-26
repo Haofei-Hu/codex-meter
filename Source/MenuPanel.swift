@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 
 // Both popovers use AppKit's native chrome, positioning and animation.
-func makeNativePopover() -> NSPopover {
-    let popover = NSPopover()
+func makeNativePopover() -> AdjustablePopover {
+    let popover = AdjustablePopover()
     popover.behavior = .transient
     popover.animates = true
     popover.appearance = NSApp.effectiveAppearance
@@ -20,6 +20,8 @@ struct StatusMenuContent: View {
         ScrollView(.vertical) { QuotaCard(model: model, showsSurface: false) }
             .scrollIndicators(.automatic)
             .frame(width: 332, height: height)
+            .background { GlassTone(appearance: model.popoverGlass) }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 func testStatusMenuPositioning() {

@@ -91,6 +91,8 @@ struct AuthStamp: Equatable {
     @Published var loading = false
     @Published var account: AccountInfo?
     @Published var desktopScale: Double = 1
+    @Published private(set) var desktopGlass: GlassAppearance
+    @Published private(set) var popoverGlass: GlassAppearance
     @Published var cardHeight: CGFloat = 274
     @Published var cardVisibleHeight: CGFloat = 274
     @Published var cardScale: Double = 1
@@ -166,6 +168,8 @@ struct AuthStamp: Equatable {
         self.executableOverride = executableOverride
         self.authURL = authURL ?? URL(fileURLWithPath: ProcessInfo.processInfo.environment["CODEX_HOME"] ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex").path).appendingPathComponent("auth.json")
         self.preferences = preferences
+        desktopGlass = GlassAppearance(preferences: preferences, target: .desktop)
+        popoverGlass = GlassAppearance(preferences: preferences, target: .popover)
         self.authStamp = AuthStamp.read(self.authURL)
         // Quota is shown only after verifying the current login. Never restore another account's cache.
         preferences.removeObject(forKey: "cachedLimits")
@@ -175,6 +179,16 @@ struct AuthStamp: Equatable {
     func setScale(_ value: Double) {
         desktopScale = max(0.75, min(1.6, value))
         preferences.set(desktopScale, forKey: "desktopScale")
+        onChange?()
+    }
+    func glassAppearance(for target: GlassTarget) -> GlassAppearance {
+        target == .desktop ? desktopGlass : popoverGlass
+    }
+    func setGlassAppearance(_ value: GlassAppearance, for target: GlassTarget) {
+        let next = GlassAppearance(transparency: value.transparency, frost: value.frost)
+        guard next != glassAppearance(for: target) else { return }
+        if target == .desktop { desktopGlass = next } else { popoverGlass = next }
+        next.save(to: preferences, target: target)
         onChange?()
     }
     @discardableResult func checkLoginChange() -> Bool {
@@ -578,7 +592,7 @@ struct QuotaCard: View {
             if !desktop { QuotaSettings(model: model) }
         }
         .padding(22).frame(width: 332, height: viewportHeight, alignment: .topLeading)
-        .background { if showsSurface { GlassSurface() } }
+        .background { if showsSurface { GlassSurface(appearance: model.desktopGlass) } }
         .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
         .overlay(alignment: .bottomTrailing) {
             if desktop { ResizeGrip(model: model).frame(width: 30, height: 30).padding(5) }
@@ -589,6 +603,8 @@ struct QuotaSettings: View {
     @ObservedObject var model: QuotaModel
     var body: some View {
                 VStack(alignment: .leading, spacing: 12) {
+                    GlassAppearanceSettings(model: model)
+                    Divider()
                     VStack(alignment: .leading, spacing: 7) {
                         HStack {
                             Text("桌面卡片大小")
@@ -624,6 +640,8 @@ struct SettingsPanel: View {
             QuotaSettings(model: model)
         }
         .padding(20).frame(width: 300)
+        .background { GlassTone(appearance: model.popoverGlass) }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 struct DesktopCard: View {
@@ -724,6 +742,7 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
         popover.performClose(nil)
         guard let button = statusItem.button else { return }
         statusPopover.appearance = NSApp.effectiveAppearance
+        statusPopover.glassAppearance = model.popoverGlass
         lastMenuLayoutKey = ""
         layoutStatusMenu()
         statusPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -752,12 +771,15 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
         if popover.isShown { popover.performClose(nil) }
         else {
             popover.appearance = NSApp.effectiveAppearance
+            popover.glassAppearance = model.popoverGlass
             popover.contentViewController = NSHostingController(rootView: SettingsPanel(model: model, close: { [weak self] in self?.popover.performClose(nil) }))
             popover.show(relativeTo: view.bounds, of: view, preferredEdge: .minX)
             if model.lastUpdate == nil || (model.dataAge ?? 0) >= 3 { model.refresh() }
         }
     }
     func updateStatus() {
+        statusPopover.glassAppearance = model.popoverGlass
+        popover.glassAppearance = model.popoverGlass
         if statusPopover.isShown { layoutStatusMenu() }
         let layoutKey = "\(model.displayRows.map { $0.id }.joined(separator: ","))-\(model.error ?? "")-\(model.accountLabel)-\(model.pausedReason ?? "")-\(model.desktopScale)-\(model.work.state)-\(model.work.tasks.map { "\($0.id):\($0.title):\($0.detail):\($0.planTotal):\($0.stage)" }.joined(separator: ","))"
         if layoutKey != lastLayoutKey, panel != nil, !panel.userDragging {
