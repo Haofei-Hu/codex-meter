@@ -151,4 +151,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="$(cat VERSION)"
-          gh release create "v$version" release-assets/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Codex Meter $version · macOS / Windows / Linux" --notes-file docs/release-1.5.0.md
+          gh release create "v$version" release-assets/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Codex Meter $version · macOS / Windows / Linux" --notes-file "docs/release-$version.md"

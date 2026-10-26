@@ -4,13 +4,14 @@ const fs = require('node:fs'), path = require('node:path'), os = require('node:o
 const { Backend } = require('./backend.cjs');
 const { autostartExecutable } = require('./platform.cjs');
 const { clamp, menuFrame } = require('./model.cjs');
+const { cardLayout, cardFrame } = require('../ui/geometry.js');
 const { trayPNG } = require('./tray-icon.cjs');
 const smoke = !app.isPackaged && process.argv.includes('--smoke-test');
 if (smoke) app.setPath('userData', fs.mkdtempSync(path.join(os.tmpdir(), 'codex-meter-smoke-')));
 app.setName('Codex Meter');
 if (!app.requestSingleInstanceLock()) { app.quit(); } else {
   app.setAppUserModelId('io.github.HaofeiHu.CodexMeter');
-  let widget, popup, tray, backend, prefs, prefsFile, latest, quitting = false, popupMode = 'overview', popupHeight = 560, holdingDialog = false;
+  let widget, popup, tray, backend, prefs, prefsFile, latest, quitting = false, popupMode = 'overview', popupHeight = 560, holdingDialog = false, naturalCard = null, userMoving = false, smokeWorkArea = null;
   const icon = path.join(__dirname, '../assets/icon.png');
   const windows = () => [widget, popup].filter(win => win && !win.isDestroyed());
   const approved = event => windows().some(win => win.webContents === event.sender);
@@ -21,9 +22,16 @@ if (!app.requestSingleInstanceLock()) { app.quit(); } else {
       x: Number.isFinite(saved.x) ? saved.x : null, y: Number.isFinite(saved.y) ? saved.y : null };
   }
   function savePrefs() { fs.mkdirSync(path.dirname(prefsFile), { recursive: true }); const temp = `${prefsFile}.tmp`; fs.writeFileSync(temp, JSON.stringify(prefs, null, 2), { mode: 0o600 }); fs.renameSync(temp, prefsFile); }
-  function snapshot() { return { ...(latest || backend?.snapshot()), prefs, platform: process.platform, version: app.getVersion() }; }
+  function areaFor(win) {
+    const area = screen.getDisplayMatching(win.getBounds()).workArea;
+    return smoke && win === widget && smokeWorkArea ? { ...area, width: Math.min(area.width, smokeWorkArea.width), height: Math.min(area.height, smokeWorkArea.height) } : area;
+  }
+  function snapshot(win = widget) {
+    const area = areaFor(win);
+    return { ...(latest || backend?.snapshot()), prefs, viewport: { width: area.width, height: area.height }, platform: process.platform, version: app.getVersion() };
+  }
   function sendState() {
-    for (const win of windows()) win.webContents.send('meter:state', snapshot());
+    for (const win of windows()) win.webContents.send('meter:state', snapshot(win));
     if (!tray || !latest) return;
     const waiting = ['waiting', 'paused'].includes(latest.phase), rows = waiting ? [] : latest.rows;
     const key = JSON.stringify([waiting, rows.map(x => [x.remaining, x.label]), latest.work.activeCount]);
@@ -54,12 +62,15 @@ if (!app.requestSingleInstanceLock()) { app.quit(); } else {
     win.on('close', event => { if (!quitting) { event.preventDefault(); win.hide(); if (win === widget) { prefs.desktopVisible = false; savePrefs(); sendState(); } } });
     return win;
   }
-  function clampWidget(size) {
-    const current = widget.getBounds(), display = screen.getDisplayMatching(current), area = display.workArea;
-    const width = Math.min(Math.ceil(size.width), area.width - 16), height = Math.min(Math.ceil(size.height), area.height - 16);
-    const x = clamp(current.x, area.x + 8, area.x + area.width - width - 8), y = clamp(current.y, area.y + 8, area.y + area.height - height - 8);
-    widget.setBounds({ x: Math.round(x), y: Math.round(y), width, height });
+  function clampWidget(size = naturalCard) {
+    if (!size || !widget || widget.isDestroyed()) return;
+    naturalCard = size;
+    if (userMoving) return;
+    const current = widget.getBounds(), area = areaFor(widget);
+    const frame = cardFrame(current, cardLayout(size, prefs.scale, area), area);
+    if (Object.keys(frame).some(key => frame[key] !== current[key])) widget.setBounds(frame);
   }
+  function adaptDisplays() { clampWidget(); sendState(); if (popup?.isVisible()) positionPopup(); }
   function positionPopup() {
     const anchor = tray.getBounds();
     const cursor = screen.getCursorScreenPoint();
@@ -128,12 +139,22 @@ if (!app.requestSingleInstanceLock()) { app.quit(); } else {
     widget.setPosition(prefs.x ?? area.x + area.width - 380, prefs.y ?? area.y + 24);
     widget.once('ready-to-show', () => { if (prefs.desktopVisible) widget.showInactive(); });
     let moveTimer;
-    widget.on('moved', () => { clearTimeout(moveTimer); moveTimer = setTimeout(() => { if (!widget.isDestroyed()) { const bounds = widget.getBounds(); prefs.x = bounds.x; prefs.y = bounds.y; savePrefs(); } }, 300); });
+    widget.on('will-move', () => { userMoving = true; });
+    widget.on('moved', () => {
+      clearTimeout(moveTimer);
+      moveTimer = setTimeout(() => {
+        if (widget.isDestroyed()) return;
+        userMoving = false;
+        adaptDisplays();
+        const bounds = widget.getBounds(); prefs.x = bounds.x; prefs.y = bounds.y; savePrefs();
+      }, 180);
+    });
+    for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(event, adaptDisplays);
     widget.on('blur', () => { if (!prefs.alwaysOnTop && !widget.isDestroyed()) { try { widget.moveBottom(); } catch {} } });
     tray = new Tray(nativeImage.createFromBuffer(trayPNG([]))); tray.setToolTip('Codex · 等待登录');
     tray.on('click', () => showPopup('overview')); tray.on('double-click', () => showPopup('overview'));
     tray.on('right-click', () => { if (tray._contextMenu) tray.popUpContextMenu(tray._contextMenu); });
-    ipcMain.handle('meter:snapshot', event => { if (!approved(event)) throw new Error('Unknown window'); return snapshot(); });
+    ipcMain.handle('meter:snapshot', event => { if (!approved(event)) throw new Error('Unknown window'); return snapshot(BrowserWindow.fromWebContents(event.sender)); });
     ipcMain.handle('meter:preference', (event, key, value) => { if (!approved(event)) throw new Error('Unknown window'); return setPreference(key, value); });
     ipcMain.handle('meter:action', async (event, action) => {
       if (!approved(event)) throw new Error('Unknown window');
@@ -156,7 +177,7 @@ if (!app.requestSingleInstanceLock()) { app.quit(); } else {
     backend.on('state', state => { latest = state; sendState(); }); backend.start();
     powerMonitor.on('suspend', () => backend.suspend()); powerMonitor.on('resume', () => backend.resume());
     if (smoke) {
-      const timer = setTimeout(() => { console.error('Electron smoke test timed out'); app.exit(1); }, 20000);
+      const timer = setTimeout(() => { console.error('Electron smoke test timed out'); app.exit(1); }, 40000);
       backend.on('state', async state => {
         if (state.phase !== 'ready' || state.rows.length !== 2 || state.work.state !== 'running' || widget._smoked) return;
         widget._smoked = true;
@@ -172,6 +193,11 @@ if (!app.requestSingleInstanceLock()) { app.quit(); } else {
           if (Math.abs(widget.getBounds().width - 431) > 2) throw new Error('Card resize did not update native bounds');
           await widget.webContents.executeJavaScript('window.meter.preference("scale", 1)');
           await new Promise(resolve => setTimeout(resolve, 350));
+          clearInterval(backend.timer);
+          await require('../test/window-smoke.cjs')({ win: widget, screen, state: latest,
+            updateState: value => { latest = value; sendState(); },
+            setArea: value => { smokeWorkArea = value; adaptDisplays(); },
+            setScale: value => setPreference('scale', value) });
           if (process.env.CODEX_METER_SCREENSHOT) { const image = await widget.webContents.capturePage(); fs.writeFileSync(process.env.CODEX_METER_SCREENSHOT, image.toPNG()); }
           clearTimeout(timer); console.log('PASS Electron smoke: isolated renderer, RPC, Plus windows, live work, tray and resizing'); app.quit();
         } catch (error) { console.error(error.message); app.exit(1); }

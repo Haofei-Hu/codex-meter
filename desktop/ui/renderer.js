@@ -1,6 +1,7 @@
 'use strict';
 const query = new URLSearchParams(location.search), view = query.get('view') || 'desktop', preview = query.get('preview') === '1';
 document.body.classList.add(view === 'desktop' ? 'desktop' : 'popup', view);
+const cardTop = document.getElementById('card-header'), cardBottom = document.getElementById('card-footer');
 const card = document.getElementById('card'), shell = document.getElementById('shell'), content = document.getElementById('content');
 let current, dragging = false, resizeScheduled = false, message = '';
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -41,30 +42,45 @@ function work() {
 function render(state) {
   current = state;
   if (dragging || document.activeElement?.type === 'range') { layout(); return; }
-  if (view === 'settings') content.innerHTML = `<div class="settings-title">卡片设置<button class="close" data-action="close-popup" aria-label="关闭设置">×</button></div>${settings()}`;
+  if (view === 'settings') { cardTop.innerHTML = '<div class="settings-title">卡片设置<button class="close" data-action="close-popup" aria-label="关闭设置">×</button></div>'; content.innerHTML = settings(); cardBottom.innerHTML = ''; }
   else {
     const age = state.lastUpdate ? Math.max(0, Math.floor((now() - state.lastUpdate) / 1000)) : null;
     const stale = waiting() || !!state.error || age == null || age > 35;
     const status = waiting() ? '已暂停' : state.loading ? '同步中' : stale ? '待更新' : age < 2 ? '刚更新' : `${age}秒前`;
     const plan = ({ plus: 'Plus', pro: 'Pro', prolite: 'Pro Lite', free: 'Free', team: 'Team', business: 'Business', enterprise: 'Enterprise', edu: 'Edu' })[state.account?.planType] || state.account?.planType || 'ChatGPT';
     const account = state.account ? `${plan}${state.account.email ? ' · ' + state.account.email : ''}` : state.loading ? '正在识别当前账号…' : '未登录 ChatGPT 账号';
-    content.innerHTML = `${preview ? '<div class="demo">界面演示数据</div>' : ''}<header class="header"><span class="logo">&lt;/&gt;</span><h1>Codex 剩余额度</h1><span class="status"><i class="dot ${stale ? 'stale' : ''}"></i>${status}</span>${view === 'desktop' ? '<button class="more" data-action="settings" aria-label="卡片设置">···</button>' : ''}</header>
-      <div class="account" title="${html(account)}">${html(account)}</div>
+    cardTop.innerHTML = `${preview ? '<div class="demo">界面演示数据</div>' : ''}<header class="header" title="拖动这里移动桌面卡片"><span class="logo">&lt;/&gt;</span><h1>Codex 剩余额度</h1><span class="status"><i class="dot ${stale ? 'stale' : ''}"></i>${status}</span>${view === 'desktop' ? '<button class="more" data-action="settings" aria-label="卡片设置">···</button>' : ''}</header>`;
+    content.innerHTML = `<div class="account" title="${html(account)}">${html(account)}</div>
       ${!state.rows.length ? `<div class="empty"><strong>—</strong><span>${html(state.reason || (state.loading ? '正在读取你的 Codex 额度…' : '暂未获取到额度'))}</span></div>` : `<div class="quotas">${state.rows.map(row => {
         const remaining = row.remaining ?? 0, length = 2 * Math.PI * 44;
         return `<div class="quota"><div class="ring"><svg viewBox="0 0 94 94" aria-hidden="true"><circle class="track" cx="47" cy="47" r="44"/><circle class="fill" cx="47" cy="47" r="44" style="stroke:${color(remaining)};stroke-dasharray:${length};stroke-dashoffset:${length * (1 - remaining / 100)}"/></svg><div class="percent"><span class="amount">${row.remaining == null ? '—' : remaining}</span><span class="suffix">${row.remaining == null ? '未返回' : '% 剩余'}</span></div></div><div class="quota-info"><h2>${html(row.group === 'Codex' ? row.label : row.group + ' · ' + row.label)}</h2>${row.resetsAt ? `<div class="reset">${countdown(row.resetsAt)}</div><div class="date">${date(row.resetsAt)}</div>` : `<div class="date">${row.remaining == null ? '等待服务器返回额度' : '未提供重置时间'}</div>`}</div></div>`;
       }).join('')}</div>`}
-      ${work()}${state.error || message ? `<div class="error">${html(message || state.error)}</div>` : ''}<div class="divider"></div><footer class="footer"><div><div class="sync-time">${state.lastUpdate ? '更新于 ' + new Date(state.lastUpdate).toLocaleTimeString('zh-CN', { hour12: false }) : '尚未同步'}</div><div class="sync-next">${html(state.reason || `每 15 秒同步 · ${Math.max(0, Math.floor((state.nextUpdate - now()) / 1000))} 秒后刷新`)}</div></div><button class="refresh" data-action="refresh" aria-label="立即刷新" ${state.loading || waiting() ? 'disabled' : ''}>↻</button></footer>${view !== 'desktop' ? settings() : ''}`;
+      ${work()}${state.error || message ? `<div class="error">${html(message || state.error)}</div>` : ''}${view !== 'desktop' ? settings() : ''}`;
+    cardBottom.innerHTML = `<div class="divider"></div><footer class="footer"><div><div class="sync-time">${state.lastUpdate ? '更新于 ' + new Date(state.lastUpdate).toLocaleTimeString('zh-CN', { hour12: false }) : '尚未同步'}</div><div class="sync-next">${html(state.reason || `每 15 秒同步 · ${Math.max(0, Math.floor((state.nextUpdate - now()) / 1000))} 秒后刷新`)}</div></div><button class="refresh" data-action="refresh" aria-label="立即刷新" ${state.loading || waiting() ? 'disabled' : ''}>↻</button></footer>`;
   }
   layout();
 }
 function layout() {
-  if (!current) return;
-  const scale = view === 'desktop' ? current.prefs.scale : 1;
-  shell.style.transform = `scale(${scale})`;
-  if (resizeScheduled) return;
+  if (!current || resizeScheduled) return;
   resizeScheduled = true;
-  requestAnimationFrame(() => { resizeScheduled = false; const size = card.getBoundingClientRect(); window.meter?.resize({ width: size.width + 16, height: size.height + 16 }); });
+  requestAnimationFrame(() => {
+    resizeScheduled = false;
+    // Measure unscaled content, including hidden overflow, rather than the clipped window.
+    const style = getComputedStyle(card);
+    const vertical = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((n, key) => n + parseFloat(style[key]), 0);
+    const natural = { width: card.offsetWidth, height: Math.ceil(cardTop.offsetHeight + content.offsetHeight + cardBottom.offsetHeight + vertical) };
+    if (view === 'desktop') {
+      const area = current.viewport || { width: window.screen.availWidth, height: window.screen.availHeight };
+      const fit = window.meterGeometry.cardLayout(natural, current.prefs.scale, area);
+      shell.style.transform = `scale(${fit.scale})`;
+      card.style.maxHeight = `${fit.maxCardHeight}px`;
+      card.classList.toggle('scrolling', fit.scroll);
+      window.meter?.resize(natural);
+    } else {
+      shell.style.transform = 'none';
+      window.meter?.resize({ width: natural.width + 16, height: natural.height + 16 });
+    }
+  });
 }
 async function invoke(action) {
   try {
@@ -93,9 +109,9 @@ if (view === 'desktop') {
     current.prefs.scale = scale; layout(); window.meter?.preference('scale', scale)?.catch(() => {});
   });
   const end = () => { if (dragging) { dragging = false; render(current); } };
-  grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end);
+  grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end); grip.addEventListener('lostpointercapture', end);
 }
-new ResizeObserver(layout).observe(card);
+new ResizeObserver(layout).observe(content);
 if (window.meter) window.meter.subscribe(render);
 else if (preview) {
   const time = Date.now();

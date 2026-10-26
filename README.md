@@ -12,14 +12,14 @@ A desktop card and menu bar / tray app for Codex quota and local task progress. 
 
 | 系统 | 下载文件 | 安装方法 |
 | --- | --- | --- |
-| macOS 13+，Apple 芯片 / Intel | `CodexMeter-1.5.0-universal.dmg` | 把应用拖入 Applications；也提供 ZIP |
-| Windows 10/11 x64 | `CodexMeter-1.5.0-windows-x64-setup.exe` | 运行安装向导；也提供 `portable.exe` 免安装版 |
-| Linux x64 | `CodexMeter-1.5.0-linux-x86_64.AppImage` | 文件属性中允许执行，双击启动 |
-| Ubuntu 22.04+ / Debian 12+ x64 | `CodexMeter-1.5.0-linux-amd64.deb` | 用系统软件安装器安装，或 `sudo apt install ./文件名.deb` |
+| macOS 13+，Apple 芯片 / Intel | `CodexMeter-1.5.1-universal.dmg` | 把应用拖入 Applications；也提供 ZIP |
+| Windows 10/11 x64 | `CodexMeter-1.5.1-windows-x64-setup.exe` | 运行安装向导；也提供 `portable.exe` 免安装版 |
+| Linux x64 | `CodexMeter-1.5.1-linux-x86_64.AppImage` | 文件属性中允许执行，双击启动 |
+| Ubuntu 22.04+ / Debian 12+ x64 | `CodexMeter-1.5.1-linux-amd64.deb` | 用系统软件安装器安装，或 `sudo apt install ./文件名.deb` |
 
 先在本机安装并登录 Codex / ChatGPT 桌面应用，或 [Codex CLI](https://github.com/openai/codex)。每个人使用自己的账号，无需 API Key。Windows / Linux 版需要本机的 **Codex CLI**；如果没有自动找到，在卡片设置中选择 `codex.exe` / `codex`（Windows 也支持 npm 的 `codex.cmd`）。支持启动时设置的 `CODEX_HOME`。
 
-点击桌面卡片右上角 `···` 打开设置；拖动标题移动，拖动右下角调整大小。托盘点击可查看额度与工作进度，右键可退出。Linux 的点击行为由桌面环境决定，托盘菜单也提供“查看额度与工作进度”。
+点击桌面卡片右上角 `···` 打开设置；拖动标题或卡片内容移动，拖动右下角调整大小。窗口会按当前屏幕自动适配；内容过多时中间区域可以滚动，标题、刷新按钮和缩放手柄保持可见。托盘点击可查看额度与工作进度，右键可退出。Linux 的点击行为由桌面环境决定，托盘菜单也提供“查看额度与工作进度”。
 
 Windows 使用系统托盘，Linux 使用 StatusNotifierItem / Gtk 托盘。两个系统的托盘图标显示彩色额度进度条，提示文字和面板显示具体百分比；macOS 菜单栏额外支持常驻文字。GNOME 可能需要托盘扩展。Wayland 可能限制窗口定位、后台置底或透明效果；推荐在支持托盘的 X11 桌面上使用。AppImage 需要系统支持 FUSE；没有 FUSE 时可选 `.deb`。
 

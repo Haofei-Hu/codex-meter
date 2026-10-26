@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.1
+
+- Use a stable card-wide drag region on Windows/Linux, with controls excluded.
+- Fit Plus dual-quota and busy-task cards to the current monitor instead of clipping the window.
+- Keep the title, refresh button and resize grip visible; scroll excess content at readable sizes.
+- Refit after monitor, work-area or DPI changes without resetting the preferred scale.
+- Avoid redundant native frame updates and defer geometry adjustments during window movement.
+- Add Plus/Pro and short-screen regressions, including real Windows caption/client hit testing.
+
 ## 1.5.0
 
 - Windows x64 installer and portable app; Linux x64 AppImage and Debian package.
