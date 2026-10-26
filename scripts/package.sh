@@ -10,7 +10,9 @@ VERSION=$(tr -d '\n' < "$ROOT/VERSION")
 xattr -cr "$APP"
 codesign --verify --deep --strict "$APP"
 mkdir -p "$DIST_DIR" "$BUILD_DIR/dmg" "$BUILD_DIR/pkg-root" "$BUILD_DIR/pkg-scripts"
-ditto "$APP" "$BUILD_DIR/pkg-root/Codex Meter.app"
+ditto --norsrc --noextattr "$APP" "$BUILD_DIR/pkg-root/Codex Meter.app"
+xattr -cr "$BUILD_DIR/pkg-root/Codex Meter.app"
+codesign --verify --deep --strict "$BUILD_DIR/pkg-root/Codex Meter.app"
 HELPERS=()
 for ARCH in arm64 x86_64; do
     swiftc -swift-version 5 -O -target "$ARCH-apple-macos13.0" -framework SystemConfiguration "$ROOT/Installer/main.swift" -o "$BUILD_DIR/objects/InstallerSupport-$ARCH"
@@ -42,7 +44,9 @@ cat > "$BUILD_DIR/components.plist" <<'PLIST'
 PLIST
 pkgbuild --root "$BUILD_DIR/pkg-root" --component-plist "$BUILD_DIR/components.plist" --scripts "$BUILD_DIR/pkg-scripts" --install-location /Applications --identifier local.codexquota.mac.installer --version "$VERSION" "$DIST_DIR/CodexMeter-$VERSION-universal.pkg"
 
-ditto "$APP" "$BUILD_DIR/dmg/Codex Meter.app"
+ditto --norsrc --noextattr "$APP" "$BUILD_DIR/dmg/Codex Meter.app"
+xattr -cr "$BUILD_DIR/dmg/Codex Meter.app"
+codesign --verify --deep --strict "$BUILD_DIR/dmg/Codex Meter.app"
 ln -sfn /Applications "$BUILD_DIR/dmg/Applications"
 cp "$ROOT/LICENSE" "$BUILD_DIR/dmg/LICENSE.txt"
 cat > "$BUILD_DIR/dmg/安装说明.txt" <<'TXT'
@@ -55,6 +59,6 @@ DMG / ZIP 为手动安装方式，不执行自动清理。
 说明及源码：https://github.com/Haofei-Hu/codex-meter
 TXT
 hdiutil create -volname "Codex Meter" -srcfolder "$BUILD_DIR/dmg" -format UDZO -ov "$DIST_DIR/CodexMeter-$VERSION-universal.dmg"
-ditto -c -k --sequesterRsrc --keepParent "$APP" "$DIST_DIR/CodexMeter-$VERSION-universal.zip"
+ditto -c -k --norsrc --noextattr --keepParent "$BUILD_DIR/pkg-root/Codex Meter.app" "$DIST_DIR/CodexMeter-$VERSION-universal.zip"
 (cd "$DIST_DIR" && shasum -a 256 "CodexMeter-$VERSION-universal.dmg" "CodexMeter-$VERSION-universal.zip" "CodexMeter-$VERSION-universal.pkg" > SHA256SUMS.txt)
 print "Release files: $DIST_DIR"
