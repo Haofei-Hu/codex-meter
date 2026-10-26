@@ -185,7 +185,7 @@ struct AuthStamp: Equatable {
         target == .desktop ? desktopGlass : popoverGlass
     }
     func setGlassAppearance(_ value: GlassAppearance, for target: GlassTarget) {
-        let next = GlassAppearance(transparency: value.transparency, frost: value.frost)
+        let next = GlassAppearance(transparency: value.transparency, frost: value.frost, theme: value.theme)
         guard next != glassAppearance(for: target) else { return }
         if target == .desktop { desktopGlass = next } else { popoverGlass = next }
         next.save(to: preferences, target: target)
@@ -520,6 +520,7 @@ struct QuotaRing: View {
 }
 struct QuotaCard: View {
     @ObservedObject var model: QuotaModel
+    @Environment(\.colorScheme) private var inheritedColorScheme
     var desktop = false
     var openMenu: (() -> Void)? = nil
     var viewportHeight: CGFloat? = nil
@@ -597,6 +598,7 @@ struct QuotaCard: View {
         .overlay(alignment: .bottomTrailing) {
             if desktop { ResizeGrip(model: model).frame(width: 30, height: 30).padding(5) }
         }
+        .environment(\.colorScheme, (desktop ? model.desktopGlass : model.popoverGlass).theme.colorScheme ?? inheritedColorScheme)
     }
 }
 struct QuotaSettings: View {
@@ -628,6 +630,7 @@ struct QuotaSettings: View {
 }
 struct SettingsPanel: View {
     @ObservedObject var model: QuotaModel
+    @Environment(\.colorScheme) private var inheritedColorScheme
     var close: () -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -642,6 +645,7 @@ struct SettingsPanel: View {
         .padding(20).frame(width: 300)
         .background { GlassTone(appearance: model.popoverGlass) }
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .environment(\.colorScheme, model.popoverGlass.theme.colorScheme ?? inheritedColorScheme)
     }
 }
 struct DesktopCard: View {
@@ -698,8 +702,10 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
         statusItem.button?.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         statusItem.button?.imagePosition = .imageLeading
         NSApp.publisher(for: \.effectiveAppearance).receive(on: RunLoop.main).sink { [weak self] appearance in
-            self?.popover.appearance = appearance
-            self?.statusPopover.appearance = appearance
+            guard let self else { return }
+            let resolved = self.model.popoverGlass.theme.nativeAppearance ?? appearance
+            self.popover.appearance = resolved
+            self.statusPopover.appearance = resolved
         }.store(in: &subscriptions)
         panel = DesktopPanel(cardFrame: NSRect(x: 0, y: 0, width: 332, height: 244))
         let desktopHost = NSHostingView(rootView: DesktopCard(model: model, openMenu: { [weak self] in self?.showDesktopPopover() }))

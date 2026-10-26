@@ -4,7 +4,7 @@ import SwiftUI
 let glassSecondary = Color.secondary
 let glassTertiary = Color(nsColor: .tertiaryLabelColor)
 
-// Fade the background effect only; foreground text and controls stay opaque.
+// Never fade a behind-window blur: doing so exposes sharp underlying text.
 struct GlassBackdrop: NSViewRepresentable {
     let cornerRadius: CGFloat
     let appearance: GlassAppearance
@@ -20,7 +20,8 @@ struct GlassBackdrop: NSViewRepresentable {
     }
     func updateNSView(_ view: FrostedBackdrop, context: Context) {
         view.layer?.cornerRadius = cornerRadius
-        view.alphaValue = appearance.frost
+        view.alphaValue = 1
+        view.appearance = appearance.theme.nativeAppearance
     }
 }
 final class FrostedBackdrop: NSVisualEffectView {

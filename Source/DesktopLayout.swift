@@ -42,7 +42,7 @@ final class DesktopPanel: NSPanel {
     override var canBecomeMain: Bool { false }
     init(cardFrame: NSRect) {
         super.init(contentRect: cardFrame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        title = "Codex Meter"; isOpaque = false; backgroundColor = .clear; hasShadow = true
+        title = "Codex Meter"; isOpaque = false; backgroundColor = .clear; hasShadow = false
         hidesOnDeactivate = false; isReleasedWhenClosed = false
         // Use a normal window behind apps, above Finder's desktop surfaces.
         // Moving uses our own event sequence, not AppKit's background drag path.
