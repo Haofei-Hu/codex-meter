@@ -17,12 +17,8 @@ func desktopCardLayout(naturalHeight: CGFloat, requestedScale: Double, visibleFr
     return DesktopCardLayout(scale: scale, visibleHeight: height, frame: NSRect(x: x, y: top - size.height, width: size.width, height: size.height))
 }
 
-// Layout markers do not consume clicks. The panel routes dragging before
-// SwiftUI/NSScrollView can swallow a background mouse-down in an inactive app.
-struct WindowDragRegion: NSViewRepresentable {
-    func makeNSView(context: Context) -> WindowDragView { WindowDragView() }
-    func updateNSView(_ view: WindowDragView, context: Context) {}
-}
+// Controls opt out of dragging; every other point in the native content
+// bounds is draggable, including padding and the visible card edges.
 struct WindowControlRegion: NSViewRepresentable {
     func makeNSView(context: Context) -> WindowControlView { WindowControlView() }
     func updateNSView(_ view: WindowControlView, context: Context) {}
@@ -35,7 +31,6 @@ class WindowRegionView: NSView {
         return !isHiddenOrHasHiddenAncestor && bounds.contains(local) && visibleRect.contains(local)
     }
 }
-final class WindowDragView: WindowRegionView {}
 final class WindowControlView: WindowRegionView {}
 
 final class DesktopPanel: NSPanel {
@@ -59,21 +54,20 @@ final class DesktopPanel: NSPanel {
         guard let contentView, contentView.bounds.contains(contentView.convert(point, from: nil)) else { return false }
         var hit = contentView.hitTest(contentView.convert(point, from: nil))
         while let view = hit {
-            if view is NSControl || view is CornerResizeView { return false }
+            if view is NSScroller || view is CornerResizeView { return false }
             hit = view.superview
         }
-        var draggable = false, blocked = false
+        var blocked = false
         func visit(_ view: NSView) {
             if let region = view as? WindowRegionView, region.containsWindowPoint(point) {
                 if region is WindowControlView { blocked = true }
-                if region is WindowDragView { draggable = true }
             }
             if let grip = view as? CornerResizeView, !grip.isHiddenOrHasHiddenAncestor,
                grip.bounds.contains(grip.convert(point, from: nil)), grip.visibleRect.contains(grip.convert(point, from: nil)) { blocked = true }
             for child in view.subviews { visit(child) }
         }
         visit(contentView)
-        return draggable && !blocked
+        return !blocked
     }
     func beginDesktopDrag(at screenPoint: NSPoint) {
         startPointer = screenPoint; startOrigin = frame.origin; userDragging = true

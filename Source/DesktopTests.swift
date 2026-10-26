@@ -51,13 +51,25 @@ import SwiftUI
             host.layoutSubtreeIfNeeded()
             precondition(abs(host.frame.height - layout.frame.height) < 1)
             let views = allViews(host)
-            let drags = views.compactMap { $0 as? WindowDragView }.filter { !$0.isHiddenOrHasHiddenAncestor && $0.bounds.width > 0 }
-            precondition(drags.count == 1, "The panel needs one full-card drag region")
             precondition(panel.level == .normal && !panel.isMovableByWindowBackground)
             // Both quota rows, title, whitespace and footer must route dragging
             // in the inactive production panel, at normal and fitted scales.
             for point in [NSPoint(x: 30, y: panel.frame.height - 32), NSPoint(x: 15, y: panel.frame.height / 2), NSPoint(x: 50, y: 30)] {
                 precondition(panel.canDragDesktop(at: point), "Background drag region is blocked")
+            }
+            // Exercise all four visible edges, not just the central hosting
+            // view. The inset stays clear of rounded corners and resize grip.
+            for inset in [0.5, 1.0, 3.0, 6.0] {
+                for fraction in [0.1, 0.25, 0.5, 0.7, 0.82] {
+                    let width = panel.frame.width, height = panel.frame.height
+                    for point in [NSPoint(x: inset, y: height * fraction), NSPoint(x: width - inset, y: height * fraction),
+                                  NSPoint(x: width * fraction, y: inset), NSPoint(x: width * fraction, y: height - inset)] {
+                        precondition(panel.canDragDesktop(at: point), "Visible card edge must start a drag: \(plan), scale \(requestedScale), point \(point)")
+                    }
+                }
+            }
+            for outside in [NSPoint(x: -0.5, y: panel.frame.height / 2), NSPoint(x: panel.frame.width + 0.5, y: panel.frame.height / 2)] {
+                precondition(!panel.canDragDesktop(at: outside), "Outside the window must not start a drag")
             }
             let controls = views.compactMap { $0 as? WindowControlView }.filter { !$0.visibleRect.isEmpty }
             precondition(controls.count == 2, "Settings and refresh need click-through exclusions")
@@ -84,7 +96,7 @@ import SwiftUI
           }
         }
     }
-    print("PASS: Mac Plus/Pro window movement, inactive normal-level panels, control exclusions, overflow and resize grip")
+    print("PASS: Mac Plus/Pro full-window drag including 960 edge points, window movement, control exclusions, overflow and resize grip")
     if CommandLine.arguments.contains("--desktop-demo") {
         // Keep the interactive fixture on Plus with both quota windows visible.
         model.error = nil

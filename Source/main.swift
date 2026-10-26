@@ -639,7 +639,6 @@ struct DesktopCard: View {
             .fixedSize()
             .scaleEffect(model.cardScale, anchor: .topLeading)
             .frame(width: 332 * model.cardScale, height: model.cardVisibleHeight * model.cardScale, alignment: .topLeading)
-            .background { WindowDragRegion() }
     }
 }
 func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
