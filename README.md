@@ -12,10 +12,14 @@ A desktop card and menu bar / tray app for Codex quota and local task progress. 
 
 | 系统 | 下载文件 | 安装方法 |
 | --- | --- | --- |
-| macOS 13+，Apple 芯片 / Intel | `CodexMeter-1.5.1-universal.dmg` | 把应用拖入 Applications；也提供 ZIP |
-| Windows 10/11 x64 | `CodexMeter-1.5.1-windows-x64-setup.exe` | 运行安装向导；也提供 `portable.exe` 免安装版 |
-| Linux x64 | `CodexMeter-1.5.1-linux-x86_64.AppImage` | 文件属性中允许执行，双击启动 |
-| Ubuntu 22.04+ / Debian 12+ x64 | `CodexMeter-1.5.1-linux-amd64.deb` | 用系统软件安装器安装，或 `sudo apt install ./文件名.deb` |
+| macOS 13+，Apple 芯片 / Intel | [1.5.1.1 PKG 安装包](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1.1) | 自动替换旧版、清理旧副本；保留账号与设置 |
+| Windows 10/11 x64 | [1.5.1 下载页](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1) · `windows-x64-setup.exe` | 运行安装向导；也提供 `portable.exe` 免安装版 |
+| Linux x64 | [1.5.1 下载页](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1) · AppImage | 文件属性中允许执行，双击启动 |
+| Ubuntu 22.04+ / Debian 12+ x64 | [1.5.1 下载页](https://github.com/Haofei-Hu/codex-meter/releases/tag/v1.5.1) · deb | 用系统软件安装器安装，或 `sudo apt install ./文件名.deb` |
+
+**Mac 升级请优先使用 `.pkg`**：安装到 `/Applications/Codex Meter.app`，先停止旧程序并覆盖同一路径的旧版本，安装成功后把 `/Applications` 和当前用户 `~/Applications` 中同一 bundle ID 的其他旧副本移入废纸篓。保留账号、应用偏好与任务记录，不清空废纸篓。安装失败时不会清理其他旧副本；不移除比安装包更新的版本。DMG / ZIP 仍是手动安装方式，不自动清理旧副本。
+
+Mac 原生版当前为 **1.5.1.1**；Windows / Linux 仍为 **1.5.1**。Mac 采用明确的 AppKit 拖动区域，Plus / Pro 均支持；桌面卡片按当前屏幕可用空间适配，过长内容可以滚动，顶部和底部控件保持可见。
 
 先在本机安装并登录 Codex / ChatGPT 桌面应用，或 [Codex CLI](https://github.com/openai/codex)。每个人使用自己的账号，无需 API Key。Windows / Linux 版需要本机的 **Codex CLI**；如果没有自动找到，在卡片设置中选择 `codex.exe` / `codex`（Windows 也支持 npm 的 `codex.cmd`）。支持启动时设置的 `CODEX_HOME`。
 
@@ -64,7 +68,7 @@ Mac 和 Windows 包目前没有开发者正式签名 / 公证，首次打开可�
 ./build.sh                            # 当前机器架构，输出到 build/
 ARCHS="arm64 x86_64" ./build.sh        # 通用二进制
 ./scripts/test.sh                     # 本地自动测试，不修改真实登录
-./scripts/package.sh                  # 创建 DMG、ZIP 与 SHA-256 校验文件
+./scripts/package.sh                  # 创建 PKG、DMG、ZIP 并验证旧版清理逻辑
 ```
 
 可用 `CODEX_METER_BUILD_DIR` 更改构建目录，用 `MACOSX_DEPLOYMENT_TARGET` 更改最低系统版本。
@@ -91,5 +95,7 @@ Linux 无图形界面的测试环境使用 `xvfb-run -a pnpm smoke`。安装包�
 跨平台界面与后端位于 `desktop/ui/` 和 `desktop/src/`，不依赖在线网页。图标从相同的 `Assets/AppIcon.png` 生成。`.github/workflows/build-desktop.yml` 在 Windows、Ubuntu 和 macOS 上测试、打包；手动运行时选择 `publish` 才会在所有平台通过后发布 Release，并生成校验文件。
 
 ## 说明
+
+Mac 专用发布使用 `.github/workflows/release-macos.yml`；四段维护版本不改变 Windows / Linux 的 npm 包版本。
 
 独立的个人开源项目，与 OpenAI 没有隶属关系。它不会调用模型来测算额度，也不能绕过或重置账号额度。MIT License。

@@ -92,6 +92,8 @@ struct AuthStamp: Equatable {
     @Published var account: AccountInfo?
     @Published var desktopScale: Double = 1
     @Published var cardHeight: CGFloat = 274
+    @Published var cardVisibleHeight: CGFloat = 274
+    @Published var cardScale: Double = 1
     private let executableOverride: String?
     private let authURL: URL
     private let preferences: UserDefaults
@@ -487,18 +489,23 @@ struct QuotaCard: View {
     @ObservedObject var model: QuotaModel
     var desktop = false
     var openMenu: (() -> Void)? = nil
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+    var viewportHeight: CGFloat? = nil
+    var header: some View {
             HStack(spacing: 9) {
+              HStack(spacing: 9) {
                 Image(systemName: "chevron.left.forwardslash.chevron.right").font(.system(size: 17, weight: .bold)).foregroundStyle(mint)
                 Text("Codex 剩余额度").font(.system(size: 14, weight: .semibold))
                 Spacer()
                 Circle().fill(model.stale ? Color.orange : mint).frame(width: 5, height: 5)
                 Text(model.syncLabel).font(.system(size: 10)).foregroundStyle(.secondary)
+              }.overlay { if desktop { WindowDragRegion() } }
                 if desktop {
                     Button { openMenu?() } label: { Image(systemName: "ellipsis").frame(width: 22, height: 22) }.buttonStyle(.plain).help("卡片设置")
                 }
             }
+    }
+    var contents: some View {
+        VStack(alignment: .leading, spacing: 18) {
             Text(model.accountLabel).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             if model.displayRows.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
@@ -532,7 +539,10 @@ struct QuotaCard: View {
             }
             WorkProgressSection(overview: model.work, now: model.now)
             if let error = model.error { Text(error).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
-            Rectangle().fill(.white.opacity(0.09)).frame(height: 1)
+        }.fixedSize(horizontal: false, vertical: true)
+         .overlay { if desktop { WindowDragRegion() } }
+    }
+    var footer: some View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.lastUpdate.map { "更新于 " + $0.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits)) } ?? "尚未同步").font(.system(size: 10)).foregroundStyle(.secondary)
@@ -544,9 +554,19 @@ struct QuotaCard: View {
                 }.buttonStyle(.plain).disabled(model.loading || model.pausedReason != nil).help("立即刷新")
 
             }
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            header.fixedSize(horizontal: false, vertical: true)
+            if viewportHeight != nil {
+                ScrollView(.vertical) { contents }.scrollIndicators(.automatic)
+                    .frame(maxHeight: .infinity)
+            } else { contents }
+            Rectangle().fill(.white.opacity(0.09)).frame(height: 1)
+            footer.fixedSize(horizontal: false, vertical: true)
             if !desktop { QuotaSettings(model: model) }
         }
-        .padding(22).frame(width: 332)
+        .padding(22).frame(width: 332, height: viewportHeight, alignment: .topLeading)
         .background(LinearGradient(colors: [Color(red: 0.11, green: 0.14, blue: 0.16), Color(red: 0.065, green: 0.08, blue: 0.095)], startPoint: .topLeading, endPoint: .bottomTrailing))
         .clipShape(RoundedRectangle(cornerRadius: 23))
         .overlay(RoundedRectangle(cornerRadius: 23).stroke(.white.opacity(0.12), lineWidth: 1))
@@ -605,13 +625,15 @@ struct DesktopCard: View {
     @ObservedObject var model: QuotaModel
     var openMenu: () -> Void
     var body: some View {
-        QuotaCard(model: model, desktop: true, openMenu: openMenu)
+        QuotaCard(model: model, desktop: true, openMenu: openMenu, viewportHeight: model.cardVisibleHeight)
             .fixedSize()
-            .scaleEffect(model.desktopScale, anchor: .topLeading)
-            .frame(width: 332 * model.desktopScale, height: model.cardHeight * model.desktopScale, alignment: .topLeading)
+            .scaleEffect(model.cardScale, anchor: .topLeading)
+            .frame(width: 332 * model.cardScale, height: model.cardVisibleHeight * model.cardScale, alignment: .topLeading)
     }
 }
 final class DesktopPanel: NSPanel {
+    var userDragging = false
+    var dragEnded: (() -> Void)?
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
@@ -666,7 +688,10 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
         panel.hidesOnDeactivate = false; panel.isReleasedWhenClosed = false
         panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-        panel.contentView = NSHostingView(rootView: DesktopCard(model: model, openMenu: { [weak self] in self?.showDesktopPopover() }))
+        let desktopHost = NSHostingView(rootView: DesktopCard(model: model, openMenu: { [weak self] in self?.showDesktopPopover() }))
+        desktopHost.sizingOptions = []
+        panel.contentView = desktopHost
+        panel.dragEnded = { [weak self] in self?.lastLayoutKey = ""; self?.updateStatus() }
         let area = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         panel.setFrameOrigin(NSPoint(x: area.maxX - 356, y: area.maxY - 285))
         panel.setFrameAutosaveName("CodexQuotaDesktop")
@@ -687,6 +712,9 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
                       ["ChatGPT.app", "Codex.app"].contains(app.bundleURL?.lastPathComponent ?? "") else { return }
                 Task { @MainActor in guard let self else { return }; self.model.setHostRunning(self.hostIsRunning()) }
             })
+        }
+        NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.lastLayoutKey = ""; self?.updateStatus() }
         }
         updateStatus(); model.start()
         if let index = CommandLine.arguments.firstIndex(of: "--snapshot"), CommandLine.arguments.count > index + 1 {
@@ -754,18 +782,18 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
     func updateStatus() {
         if statusMenu?.isVisible == true { layoutStatusMenu() }
         let layoutKey = "\(model.displayRows.map { $0.id }.joined(separator: ","))-\(model.error ?? "")-\(model.accountLabel)-\(model.pausedReason ?? "")-\(model.desktopScale)-\(model.work.state)-\(model.work.tasks.map { "\($0.id):\($0.title):\($0.detail):\($0.planTotal):\($0.stage)" }.joined(separator: ","))"
-        if layoutKey != lastLayoutKey, panel != nil {
+        if layoutKey != lastLayoutKey, panel != nil, !panel.userDragging {
             lastLayoutKey = layoutKey
             // Measure the unconstrained card, rather than the already-sized window.
             let measuringView = NSHostingView(rootView: QuotaCard(model: model, desktop: true))
             let baseSize = measuringView.fittingSize
             if baseSize.height > 100 {
-                model.cardHeight = baseSize.height
-                let size = NSSize(width: 332 * model.desktopScale, height: baseSize.height * model.desktopScale)
                 let area = panel.screen?.visibleFrame ?? NSScreen.main!.visibleFrame
-                let top = min(area.maxY, max(area.minY + size.height, panel.frame.maxY))
-                let x = max(area.minX, min(panel.frame.minX, area.maxX - size.width))
-                panel.setFrame(NSRect(x: x, y: top - size.height, width: size.width, height: size.height), display: true)
+                let layout = desktopCardLayout(naturalHeight: baseSize.height, requestedScale: model.desktopScale, visibleFrame: area, currentFrame: panel.frame)
+                model.cardHeight = baseSize.height
+                model.cardVisibleHeight = layout.visibleHeight
+                model.cardScale = layout.scale
+                if panel.frame != layout.frame { panel.setFrame(layout.frame, display: true) }
             }
         }
         let waiting = model.waitingForLogin
@@ -802,7 +830,9 @@ func statusProgressImage(remaining: Int?, stale: Bool) -> NSImage {
     func applicationWillTerminate(_ notification: Notification) { closeStatusMenu(); model.disconnect() }
 }
 
-if CommandLine.arguments.contains("--work-probe") {
+if let index = CommandLine.arguments.firstIndex(of: "--desktop-test"), CommandLine.arguments.count > index + 1 {
+    MainActor.assumeIsolated { runDesktopCardTests(directory: CommandLine.arguments[index + 1]) }
+} else if CommandLine.arguments.contains("--work-probe") {
     MainActor.assumeIsolated { probeLiveWork() }
 } else if let index = CommandLine.arguments.firstIndex(of: "--work-test"), CommandLine.arguments.count > index + 1 {
     MainActor.assumeIsolated { runWorkTrackerTest(directory: CommandLine.arguments[index + 1]) }
@@ -833,6 +863,7 @@ if CommandLine.arguments.contains("--work-probe") {
         }
     }
 } else if CommandLine.arguments.contains("--self-test") {
+    testDesktopCardLayout()
     testStatusMenuPositioning()
     testWorkLogReducer()
     let data = #"{"rateLimits":{"primary":{"usedPercent":1,"windowDurationMins":10080,"resetsAt":1793536107}},"rateLimitsByLimitId":{"codex":{"primary":{"usedPercent":1,"windowDurationMins":10080,"resetsAt":1793536107},"secondary":{"usedPercent":105,"windowDurationMins":300,"resetsAt":1793000000}}}}"#.data(using: .utf8)!

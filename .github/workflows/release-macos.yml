@@ -1,0 +1,45 @@
+name: Release native macOS fix
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build native universal app
+        run: ARCHS="arm64 x86_64" ./build.sh
+      - name: Verify native drag, layout, quotas and local task records
+        run: ./scripts/test.sh
+      - name: Build and verify replacement installer
+        run: ./scripts/package.sh
+      - name: Check installer payload and scripts
+        run: |
+          version="$(cat VERSION)"
+          pkgutil --expand-full "dist/CodexMeter-$version-universal.pkg" build/pkg-expanded
+          test -n "$(find build/pkg-expanded -name preinstall -print -quit)"
+          test -n "$(find build/pkg-expanded -name postinstall -print -quit)"
+          test -n "$(find build/pkg-expanded -name CodexQuota -print -quit)"
+          (cd dist && shasum -a 256 -c SHA256SUMS.txt)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-macos-installer
+          path: |
+            dist/*.pkg
+            dist/*.dmg
+            dist/*.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish native macOS release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(cat VERSION)"
+          gh release create "v$version" dist/*.pkg dist/*.dmg dist/*.zip dist/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Codex Meter $version · Mac 拖动与显示修复" --notes-file "docs/release-$version.md"

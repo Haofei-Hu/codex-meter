@@ -5,7 +5,7 @@ struct ResizeGrip: NSViewRepresentable {
     @ObservedObject var model: QuotaModel
     func makeNSView(context: Context) -> CornerResizeView { CornerResizeView() }
     func updateNSView(_ view: CornerResizeView, context: Context) {
-        view.currentScale = { model.desktopScale }
+        view.currentScale = { model.cardScale }
         view.onResize = { model.setScale($0) }
     }
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.1.1 (macOS)
+
+- Replace implicit background dragging with native AppKit drag regions for Plus and Pro.
+- Fit the desktop card to the active screen and scroll long contents while pinning controls.
+- Disable hosting-view automatic window sizing and defer layout changes during native dragging.
+- Add a universal PKG installer that replaces the app and moves matching older duplicates to Trash.
+- Preserve preferences and Codex login; verify the new payload before removing duplicates.
+- Windows and Linux remain on 1.5.1.
+
 ## 1.5.1
 
 - Use a stable card-wide drag region on Windows/Linux, with controls excluded.
