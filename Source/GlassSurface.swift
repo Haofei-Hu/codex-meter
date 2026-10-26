@@ -3,6 +3,7 @@ import SwiftUI
 
 let glassSecondary = Color.secondary
 let glassTertiary = Color(nsColor: .tertiaryLabelColor)
+let glassCornerRadius: CGFloat = 32
 var nativeLiquidGlassAvailable: Bool {
     #if compiler(>=6.2)
     if #available(macOS 26.0, *) { return true }
@@ -10,7 +11,8 @@ var nativeLiquidGlassAvailable: Bool {
     return false
 }
 
-// Never fade a behind-window blur: doing so exposes sharp underlying text.
+// Native glass stays visible while the additional HUD material is adjusted.
+// Clear glass is reserved for zero extra frost at the transparent end.
 struct GlassBackdrop: NSViewRepresentable {
     let cornerRadius: CGFloat
     let appearance: GlassAppearance
@@ -27,18 +29,21 @@ struct GlassBackdrop: NSViewRepresentable {
     }
     func updateNSView(_ container: GlassBackdropContainer, context: Context) {
         let view = container.backdrop
+        // The liquid glass is a sibling of the blur. Both must inherit the
+        // chosen appearance, including the matte content inside native glass.
+        container.appearance = appearance.theme.nativeAppearance
         view.layer?.cornerRadius = cornerRadius
-        view.alphaValue = 1
+        view.alphaValue = view.liquidGlass == nil ? 1 : appearance.blurLayerOpacity
         view.appearance = appearance.theme.nativeAppearance
         view.density.alphaValue = appearance.densityOpacity
-        view.matte.alphaValue = appearance.toneOpacity
+        view.matte.alphaValue = appearance.matteOpacity
         view.matte.needsDisplay = true
         view.needsLayout = true
         container.needsLayout = true
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), let glass = view.liquidGlass as? NSGlassEffectView {
             glass.cornerRadius = cornerRadius
-            glass.style = appearance.transparency > 1 ? .clear : .regular
+            glass.style = appearance.transparency > 2 && appearance.frost == 0 ? .clear : .regular
             glass.tintColor = nil
         }
         #endif
@@ -59,12 +64,13 @@ final class FrostedBackdrop: NSVisualEffectView {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
             let glass = NSGlassEffectView()
-            glass.cornerRadius = 23
+            glass.cornerRadius = glassCornerRadius
             glass.style = .regular
             // The matte veil belongs inside the native effect. This keeps
             // Apple's rim lighting/refraction above it instead of painting
             // a synthetic gradient or opaque layer over the glass highlights.
             glass.contentView = matte
+            matte.autoresizingMask = [.width, .height]
             liquidGlass = glass
         } else { addSubview(matte) }
         #else
@@ -101,7 +107,10 @@ final class GlassBackdropContainer: NSView {
     override func layout() {
         super.layout()
         backdrop.frame = bounds
-        backdrop.liquidGlass?.frame = bounds
+        if let glass = backdrop.liquidGlass {
+            glass.frame = bounds
+            backdrop.matte.frame = glass.bounds
+        }
     }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     override var mouseDownCanMoveWindow: Bool { false }
@@ -111,7 +120,7 @@ final class MatteBackdrop: NSView {
     override var mouseDownCanMoveWindow: Bool { false }
     override func draw(_ dirtyRect: NSRect) {
         NSColor.windowBackgroundColor.setFill()
-        NSBezierPath(roundedRect: bounds, xRadius: 23, yRadius: 23).fill()
+        NSBezierPath(roundedRect: bounds, xRadius: glassCornerRadius, yRadius: glassCornerRadius).fill()
     }
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
@@ -123,10 +132,14 @@ final class DensityBackdrop: NSVisualEffectView {
     override var mouseDownCanMoveWindow: Bool { false }
 }
 struct GlassSurface: View {
-    var cornerRadius: CGFloat = 23
+    var cornerRadius: CGFloat = glassCornerRadius
     var appearance: GlassAppearance = .system
     var body: some View {
         GlassBackdrop(cornerRadius: cornerRadius, appearance: appearance)
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.white.opacity(appearance.theme == .dark ? 0.20 : 0.10), lineWidth: 0.75)
+            }
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }

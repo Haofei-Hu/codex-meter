@@ -20,7 +20,7 @@ struct StatusMenuContent: View {
         ScrollView(.vertical) { QuotaCard(model: model, showsSurface: false) }
             .scrollIndicators(.automatic)
             .frame(width: 332, height: height)
-            .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: glassCornerRadius, style: .continuous))
             .background { GlassSurface(appearance: model.popoverGlass) }
     }
 }

@@ -184,8 +184,12 @@ struct AuthStamp: Equatable {
     func glassAppearance(for target: GlassTarget) -> GlassAppearance {
         target == .desktop ? desktopGlass : popoverGlass
     }
+    func applyAppleWidgetAppearance() {
+        setGlassAppearance(.appleWidget, for: .desktop)
+        setGlassAppearance(.appleWidget, for: .popover)
+    }
     func setGlassAppearance(_ value: GlassAppearance, for target: GlassTarget) {
-        let next = GlassAppearance(transparency: value.transparency, frost: value.frost, theme: value.theme)
+        let next = GlassAppearance(transparency: value.transparency, frost: value.frost, theme: value.theme, widgetTint: value.widgetTint)
         guard next != glassAppearance(for: target) else { return }
         if target == .desktop { desktopGlass = next } else { popoverGlass = next }
         next.save(to: preferences, target: target)
@@ -593,7 +597,7 @@ struct QuotaCard: View {
             if !desktop { QuotaSettings(model: model) }
         }
         .padding(22).frame(width: 332, height: viewportHeight, alignment: .topLeading)
-        .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: glassCornerRadius, style: .continuous))
         .background { if showsSurface { GlassSurface(appearance: model.desktopGlass) } }
         .overlay(alignment: .bottomTrailing) {
             if desktop { ResizeGrip(model: model).frame(width: 30, height: 30).padding(5) }
@@ -643,7 +647,7 @@ struct SettingsPanel: View {
             QuotaSettings(model: model)
         }
         .padding(20).frame(width: 300)
-        .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: glassCornerRadius, style: .continuous))
         .background { GlassSurface(appearance: model.popoverGlass) }
         .environment(\.colorScheme, model.popoverGlass.theme.colorScheme ?? inheritedColorScheme)
     }
