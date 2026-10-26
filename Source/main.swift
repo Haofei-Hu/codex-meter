@@ -499,7 +499,7 @@ struct QuotaRing: View {
                 .animation(.easeInOut(duration: 1.2), value: remaining)
             VStack(spacing: 0) {
                 Text(remaining.map(String.init) ?? "—").font(.system(size: 34, weight: .medium, design: .rounded)).monospacedDigit()
-                Text(remaining == nil ? "未返回" : "% 剩余").font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
+                Text(remaining == nil ? "未返回" : "% 剩余").font(.system(size: 9, weight: .medium)).foregroundStyle(glassSecondary)
             }
         }.frame(width: 94, height: 94)
     }
@@ -509,6 +509,7 @@ struct QuotaCard: View {
     var desktop = false
     var openMenu: (() -> Void)? = nil
     var viewportHeight: CGFloat? = nil
+    var showsSurface = true
     var header: some View {
             HStack(spacing: 9) {
               HStack(spacing: 9) {
@@ -516,20 +517,20 @@ struct QuotaCard: View {
                 Text("Codex 剩余额度").font(.system(size: 14, weight: .semibold))
                 Spacer()
                 Circle().fill(model.stale ? Color.orange : mint).frame(width: 5, height: 5)
-                Text(model.syncLabel).font(.system(size: 10)).foregroundStyle(.secondary)
+                Text(model.syncLabel).font(.system(size: 10)).foregroundStyle(glassSecondary)
               }
                 if desktop {
-                    Button { openMenu?() } label: { Image(systemName: "ellipsis").frame(width: 22, height: 22) }.buttonStyle(.plain).help("卡片设置").background { WindowControlRegion() }
+                    Button { openMenu?() } label: { Image(systemName: "ellipsis").frame(width: 22, height: 22).background { GlassCircle() } }.buttonStyle(.plain).help("卡片设置").background { WindowControlRegion() }
                 }
             }
     }
     var contents: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text(model.accountLabel).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+            Text(model.accountLabel).font(.system(size: 10)).foregroundStyle(glassSecondary).lineLimit(1).truncationMode(.middle)
             if model.displayRows.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("—").font(.system(size: 52, weight: .light))
-                    Text(model.pausedReason ?? (model.loading ? "正在读取你的 Codex 额度…" : "暂未获取到额度")).foregroundStyle(.secondary)
+                    Text(model.pausedReason ?? (model.loading ? "正在读取你的 Codex 额度…" : "暂未获取到额度")).foregroundStyle(glassSecondary)
                 }.frame(height: 110)
             } else {
                 ForEach(model.displayRows) { row in
@@ -540,8 +541,8 @@ struct QuotaCard: View {
                             if let reset = row.window?.resetsAt {
                                 let date = Date(timeIntervalSince1970: reset)
                                 Text(remainingText(date, now: model.now)).font(.system(size: 11)).foregroundStyle(mint)
-                                Text(dateText(date)).font(.system(size: 11)).foregroundStyle(.secondary)
-                            } else { Text(row.window == nil ? "等待服务器返回额度" : "未提供重置时间").font(.system(size: 11)).foregroundStyle(.secondary) }
+                                Text(dateText(date)).font(.system(size: 11)).foregroundStyle(glassSecondary)
+                            } else { Text(row.window == nil ? "等待服务器返回额度" : "未提供重置时间").font(.system(size: 11)).foregroundStyle(glassSecondary) }
                         }
                         Spacer(minLength: 0)
                     }
@@ -554,12 +555,12 @@ struct QuotaCard: View {
     var footer: some View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(model.lastUpdate.map { "更新于 " + $0.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits)) } ?? "尚未同步").font(.system(size: 10)).foregroundStyle(.secondary)
-                    Text(model.pausedReason ?? "每 \(Int(model.interval)) 秒同步 · \(max(0, Int(model.nextUpdate.timeIntervalSince(model.now)))) 秒后刷新").font(.system(size: 9)).foregroundStyle(.tertiary).monospacedDigit()
+                    Text(model.lastUpdate.map { "更新于 " + $0.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits)) } ?? "尚未同步").font(.system(size: 10)).foregroundStyle(glassSecondary)
+                    Text(model.pausedReason ?? "每 \(Int(model.interval)) 秒同步 · \(max(0, Int(model.nextUpdate.timeIntervalSince(model.now)))) 秒后刷新").font(.system(size: 9)).foregroundStyle(glassTertiary).monospacedDigit()
                 }
                 Spacer()
                 Button { model.refresh() } label: {
-                    Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .medium)).frame(width: 30, height: 30).background(.white.opacity(0.07), in: Circle())
+                    Image(systemName: "arrow.clockwise").font(.system(size: 12, weight: .medium)).frame(width: 30, height: 30).background { GlassCircle() }
                 }.buttonStyle(.plain).disabled(model.loading || model.pausedReason != nil).help("立即刷新")
                  .background { if desktop { WindowControlRegion() } }
 
@@ -577,9 +578,8 @@ struct QuotaCard: View {
             if !desktop { QuotaSettings(model: model) }
         }
         .padding(22).frame(width: 332, height: viewportHeight, alignment: .topLeading)
-        .background(LinearGradient(colors: [Color(red: 0.11, green: 0.14, blue: 0.16), Color(red: 0.065, green: 0.08, blue: 0.095)], startPoint: .topLeading, endPoint: .bottomTrailing))
-        .clipShape(RoundedRectangle(cornerRadius: 23))
-        .overlay(RoundedRectangle(cornerRadius: 23).stroke(.white.opacity(0.12), lineWidth: 1))
+        .background { if showsSurface { GlassSurface() } }
+        .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
         .overlay(alignment: .bottomTrailing) {
             if desktop { ResizeGrip(model: model).frame(width: 30, height: 30).padding(5) }
         }
@@ -607,7 +607,7 @@ struct QuotaSettings: View {
                         Button("选择 Codex 程序…") { model.selectCLI() }
                         Spacer()
                         Button("退出") { NSApp.terminate(nil) }
-                    }.foregroundStyle(.secondary)
+                    }.foregroundStyle(glassSecondary)
                 }.font(.system(size: 11)).toggleStyle(.switch).controlSize(.mini)
     }
 }
@@ -625,9 +625,8 @@ struct SettingsPanel: View {
             QuotaSettings(model: model)
         }
         .padding(20).frame(width: 300)
-        .background(LinearGradient(colors: [Color(red: 0.11, green: 0.14, blue: 0.16), Color(red: 0.065, green: 0.08, blue: 0.095)], startPoint: .topLeading, endPoint: .bottomTrailing))
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(.white.opacity(0.12), lineWidth: 1))
+        .background { GlassSurface(cornerRadius: 20) }
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .environment(\.colorScheme, .dark)
     }
 }

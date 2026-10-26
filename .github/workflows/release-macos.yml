@@ -5,7 +5,7 @@ permissions:
   contents: read
 jobs:
   macos:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     permissions:
       contents: write
@@ -42,4 +42,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="$(cat VERSION)"
-          gh release create "v$version" dist/*.pkg dist/*.dmg dist/*.zip dist/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Codex Meter $version · Mac 拖动与显示修复" --notes-file "docs/release-$version.md"
+          gh release create "v$version" dist/*.pkg dist/*.dmg dist/*.zip dist/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Codex Meter $version · macOS" --notes-file "docs/release-$version.md"

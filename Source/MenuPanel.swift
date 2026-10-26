@@ -18,11 +18,11 @@ struct StatusMenuContent: View {
     @ObservedObject var model: QuotaModel
     let height: CGFloat
     var body: some View {
-        ScrollView(.vertical) { QuotaCard(model: model) }
+        ScrollView(.vertical) { QuotaCard(model: model, showsSurface: false) }
             .scrollIndicators(.automatic)
             .frame(width: 332, height: height)
-            .background(Color(red: 0.065, green: 0.08, blue: 0.095))
-            .clipShape(RoundedRectangle(cornerRadius: 23))
+            .background { GlassSurface() }
+            .clipShape(RoundedRectangle(cornerRadius: 23, style: .continuous))
             .environment(\.colorScheme, .dark)
     }
 }

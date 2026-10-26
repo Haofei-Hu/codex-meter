@@ -210,7 +210,7 @@ struct WorkProgressSection: View {
                 Image(systemName: "waveform.path").foregroundStyle(mint)
                 Text("实时工作进度").fontWeight(.semibold)
                 Spacer()
-                Text(overview.label).foregroundStyle(overview.state == .running ? mint : .secondary)
+                Text(overview.label).foregroundStyle(overview.state == .running ? mint : glassSecondary)
             }.font(.system(size: 11))
             ForEach(overview.tasks) { task in
                 VStack(alignment: .leading, spacing: 7) {
@@ -220,12 +220,12 @@ struct WorkProgressSection: View {
                         Text(task.stage)
                         Spacer()
                         Text((task.active ? "已运行 " : "耗时 ") + workElapsed(task, now: now)).monospacedDigit()
-                    }.font(.system(size: 10)).foregroundStyle(.secondary)
+                    }.font(.system(size: 10)).foregroundStyle(glassSecondary)
                     if let progress = task.progress {
                         ProgressView(value: progress).tint(mint)
-                        Text("计划步骤 \(task.planDone)/\(task.planTotal) 完成").font(.system(size: 9)).foregroundStyle(.secondary)
+                        Text("计划步骤 \(task.planDone)/\(task.planTotal) 完成").font(.system(size: 9)).foregroundStyle(glassSecondary)
                     }
-                    if !task.detail.isEmpty { Text(task.detail).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2) }
+                    if !task.detail.isEmpty { Text(task.detail).font(.system(size: 10)).foregroundStyle(glassSecondary).lineLimit(2) }
                     if task.active && now.timeIntervalSince(task.updatedAt) > 120 {
                         Text("\(Int(now.timeIntervalSince(task.updatedAt) / 60)) 分钟未收到新记录").font(.system(size: 9)).foregroundStyle(.orange)
                     }
@@ -233,11 +233,11 @@ struct WorkProgressSection: View {
             }
             if overview.tasks.isEmpty {
                 Text(overview.state == .idle ? "暂无运行中的本机任务" : overview.state == .paused ? "登录并打开 Codex 后自动恢复" : overview.state == .unavailable ? "未找到可读取的本机任务记录" : "正在读取本机任务记录…")
-                    .font(.system(size: 10)).foregroundStyle(.secondary)
+                    .font(.system(size: 10)).foregroundStyle(glassSecondary)
             }
-            Text("本机任务记录 · 每 2 秒更新").font(.system(size: 9)).foregroundStyle(.tertiary)
+            Text("本机任务记录 · 每 2 秒更新").font(.system(size: 9)).foregroundStyle(glassTertiary)
         }
         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
+        .background { GlassInset() }
     }
 }
